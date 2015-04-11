@@ -3,6 +3,9 @@
  * @author Mark Lundin / http://mark-lundin.com
  * @author Simone Manini / http://daron1337.github.io
  * @author Luca Antiga / http://lantiga.github.io
+ *
+ * Modified so state can be modified directly for different modes of control.
+ * State also persists after mouseup. 
  */
 
 THREE.TrackballControls = function ( object, domElement ) {
