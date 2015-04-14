@@ -9,11 +9,14 @@
   <!-- Leap -->
   <script src="https://js.leapmotion.com/leap-0.6.4.js"></script>
   <script src="https://js.leapmotion.com/leap-plugins-0.1.10.js"></script>
-  <script src="https://js.leapmotion.com/leap.rigged-hand-0.1.4.min.js"></script>    
+  <script src="https://js.leapmotion.com/leap.rigged-hand-0.1.7.js"></script>
 
   <!-- Other -->
+  <link rel="stylesheet" type="text/css" href="./styles.css"></link>
   <script src="trackball_controls.js"></script>
   <script src="setup.js"></script>
+  <script src="leap-things.js"></script>
+
   <script type="text/javascript">
     var env;
     $(document).ready(function() {
@@ -25,9 +28,11 @@
 
 
 <body>
-  <button onclick="env.addCube()">addCube</button>
-  <button onclick="env.panCamera()">panCamera</button>
-  <button onclick="env.rotateCamera()">rotateCamera</button>
-  <button onclick="env.zoomCamera()">zoomCamera</button>
+  <div class="buttons">
+    <button onclick="env.addCube()">addCube</button>
+    <button onclick="env.panCamera()">panCamera</button>
+    <button onclick="env.rotateCamera()">rotateCamera</button>
+    <button onclick="env.zoomCamera()">zoomCamera</button>
+  </div>
 </body>
 </html>
