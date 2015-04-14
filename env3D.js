@@ -30,6 +30,19 @@ var Env3D = function() {
     };
     render();
 
+    // Needed to render the Leap hand in the scene with the objects
+    var getRenderingComponents = function () {
+        return {
+            parent: scene,
+            camera: camera,
+            renderer: renderer,
+            renderFn: function() {
+                renderer.render(scene, camera);
+                controls.update();
+            }
+        };
+    };
+
     // Components for figuring out where the mouse is and how the objects should react
     var selectedObject, intersectedObject;
     var raycaster = new THREE.Raycaster();
@@ -161,6 +174,7 @@ var Env3D = function() {
 
 
     return {
+    getRenderingComponents: getRenderingComponents,
 	addCube: addCube,
 	setMode: function(state) {
 	    // camera control states
