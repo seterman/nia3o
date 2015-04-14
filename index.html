@@ -14,25 +14,20 @@
   <!-- Other -->
   <link rel="stylesheet" type="text/css" href="./styles.css"></link>
   <script src="trackball_controls.js"></script>
-  <script src="setup.js"></script>
-  <script src="leap-things.js"></script>
-
+  <script src="leap-things.js"></script> <!-- Will be renamed -->
+  <script src="env3D.js"></script>
+  <script src="mouse_interface.js"></script>
   <script type="text/javascript">
     var env;
     $(document).ready(function() {
         $("body").css("margin", "0px");
-      env = Env3D();
+        env = Env3D();
+        MouseInterface(env);
     });
   </script>
 </head>
 
 
 <body>
-  <div class="buttons">
-    <button onclick="env.addCube()">addCube</button>
-    <button onclick="env.panCamera()">panCamera</button>
-    <button onclick="env.rotateCamera()">rotateCamera</button>
-    <button onclick="env.zoomCamera()">zoomCamera</button>
-  </div>
 </body>
 </html>
