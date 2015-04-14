@@ -3,21 +3,19 @@
   <script src="http://threejs.org/build/three.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
   <script src="trackball_controls.js"></script>
-  <script src="setup.js"></script>
+  <script src="env3D.js"></script>
+  <script src="mouse_interface.js"></script>
   <script type="text/javascript">
     var env;
     $(document).ready(function() {
         $("body").css("margin", "0px");
-      env = Env3D();
+        env = Env3D();
+        MouseInterface(env);
     });
   </script>
 </head>
 
 
 <body>
-  <button onclick="env.addCube()">addCube</button>
-  <button onclick="env.setMode(2)">panCamera</button>
-  <button onclick="env.setMode(0)">rotateCamera</button>
-  <button onclick="env.setMode(1)">zoomCamera</button>
 </body>
 </html>

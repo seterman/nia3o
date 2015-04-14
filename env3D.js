@@ -130,7 +130,7 @@ var Env3D = function() {
 	}
     };
 
-    var onCursorMove = function(clientX, clientY) {
+    var cursorMove = function(clientX, clientY) {
 	highlightObject(clientX, clientY);
 	if (selectedObject) {
 	    moveObject(clientX, clientY);
@@ -143,21 +143,6 @@ var Env3D = function() {
 	    updatePlane(clientX, clientY);
 	}
     };
-
-    
-
-    $(document).mousedown(function(e) {
-	selectObject(e.clientX, e.clientY);
-    });
-
-    $(document).mousemove(function(e) {
-	onCursorMove(e.clientX, e.clientY);
-    });
-
-    $(document).mouseup(function(e) {
-	deselectObject();
-    });
-
 
     // Currently adds a bunch of cubes, eventually will add one cube at a specified location
     var addCube = function() {
@@ -183,6 +168,9 @@ var Env3D = function() {
 	    if (state >= 0 & state <= 2) { 
 		controls.changeState(state);
 	    }
-	}
+	}, 
+	selectObject: selectObject,
+	deselectObject: deselectObject,
+	cursorMove: cursorMove
     };
 };
