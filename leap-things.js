@@ -1,3 +1,4 @@
+
 var buttons;
 
 // Gets the screen position of the given Leap position
@@ -29,6 +30,16 @@ var intersectingButton = function(pos) {
     return intersecting;
 };
 
+var previousGrabStrength = function(controller, hand, numSteps) {
+    var total = 0.0;
+    for (var i = 1; i <= numSteps; i++) {
+        var oldHand = controller.frame(i).hand(hand.id);
+        if (!oldHand.valid) { break; }
+        total += oldHand.grabStrength;
+    }
+    return total/numSteps;
+};
+
 var screenPositionOptions = {
     // positioning: 'absolute',
     // function(vec3) {
@@ -51,9 +62,9 @@ var riggedHandOptions = {
 $(document).ready(function() {
 
     // For debugging purposes:
-    var posDiv = $('<div>0').css({color: 'white', position:'absolute', top: 50, left:10});
-    var posDiv2 = $('<div>0').css({color: 'orange', position:'absolute', top:100, left:10});
-    var otherDiv = $('<div>0').css('color', 'white');
+    var posDiv = $('<div>0').css({color: 'white', position:'absolute', top: 50, left:100});
+    var posDiv2 = $('<div>0').css({color: 'orange', position:'absolute', top:100, left:100});
+    var otherDiv = $('<div>0').css({color: 'white', position:'absolute', top: 70, left:100});
 
     var controllerOptions = {};
     var controller = Leap.loop(controllerOptions, function(frame) {
@@ -68,7 +79,10 @@ $(document).ready(function() {
 
             var btn = intersectingButton(handPos);
 
-
+            var prevGrabStr = previousGrabStrength(this, hand, 10);
+            var isGrabbing = hand.grabStrength > prevGrabStr;
+            otherDiv.text(isGrabbing);
+            // posDiv2.text(prevGrabStr);
             // var btnPos = hand.screenPosition([buttons[0].position().left, buttons[0].position().top, 0]);
             // posDiv2.text(btnPos);
             // posDiv2.text(hand.screenPosition([0, 0, 0]))
