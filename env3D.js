@@ -52,7 +52,23 @@ var Env3D = function() {
     var cursorVector = new THREE.Vector3();
     var selectedObject = null;
     var hoverObject = null;
-  
+
+    // Colors used to highlight objects 
+    var HOVER_COLOR = 0x0000ff; 
+    var SELECT_COLOR = 0xff0000;
+
+    // Highlights an object
+    var highlightObject = function(object, color) {
+	// Store the original color so it can be reset later
+	object.userData.origColor = hoverObject.material.color.getHex();
+	object.material.color.set(color);
+    };
+    
+    // Reset the object's color back to its original value.
+    var revertHighlight = function(object) {
+	object.material.color.set(object.userData.origColor);
+    };
+    
     // Cast a ray from the camera to the cursor position.
     // The raycaster object can then be used to find intersecting objects.
     var castRay = function(clientX, clientY) {
@@ -68,6 +84,10 @@ var Env3D = function() {
 	if (intersect) {
 	    controls.enabled = false; // Don't move the camera while an object is selected
 	    selectedObject = intersect.object
+	    if (hoverObject) { 
+		revertHighlight(hoverObject); // Make sure origColor is set to actual origColor and not HOVER_COLOR 
+	    }
+	    highlightObject(selectedObject, SELECT_COLOR);
 	}
     };
 
@@ -84,20 +104,6 @@ var Env3D = function() {
 	}
     };
 
-    var HIGHLIGHT_COLOR = 0x0000ff; // Color used to highlight objects on hover
-
-    // Highlights an object
-    var highlightObject = function(object) {
-	// Store the original color so it can be reset later
-	object.userData.origColor = hoverObject.material.color.getHex();
-	object.material.color.set(HIGHLIGHT_COLOR);
-    };
-    
-    // Reset the object's color back to its original value.
-    var revertHighlight = function(object) {
-	object.material.color.set(object.userData.origColor);
-    };
-    
     // Deselect an object
     //TODO: it's a little sketchy that the mouse interface calls this even if there's not a selected object
     var deselectObject = function() {	
@@ -151,7 +157,7 @@ var Env3D = function() {
 	    }
 	    updateHoverObject(clientX, clientY);
 	    if (hoverObject) {
-		highlightObject(hoverObject);
+		highlightObject(hoverObject, HOVER_COLOR);
 	    }
 	}
 
