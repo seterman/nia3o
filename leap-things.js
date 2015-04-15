@@ -3,11 +3,21 @@ var buttons;
 
 // Gets the screen position of the given Leap position
 // also flips the y value to correspond to browser coordinates
-var roundedPos = function(handMesh, pos) {
-    var newPos = handMesh.screenPosition(pos);
-    newPos.y = window.innerHeight - newPos.y;
-    return { x: Math.round(newPos.x), y: Math.round(newPos.y) };
-};
+// var roundedPos = function(handMesh, pos) {
+//     var newPos = handMesh.screenPosition(pos);
+//     newPos.y = window.innerHeight - newPos.y;
+//     return { x: Math.round(newPos.x), y: Math.round(newPos.y) };
+// };
+
+var cursor = $('<div>').css({
+    'border-radius': 10,
+    'width': 10,
+    'height': 10,
+    'background-color': 'white',
+    'position': 'absolute',
+    'top': window.innerHeight/2,
+    'left': window.innerWidth/2
+});
 
 var intersectingButton = function(pos) {
     var intersecting = false;
@@ -46,8 +56,8 @@ var screenPositionOptions = {
     //     console.log(vec3);
     //     return vec3;
     // }
-    // verticalOffset: 100,
-    // scale: 0.6
+    verticalOffset: 200,
+    scale: 0.4
 };
 
 var riggedHandOptions = {
@@ -71,13 +81,17 @@ $(document).ready(function() {
         var rhScope = this.plugins.riggedHand;
         if (frame.hands.length >= 1) {
             var hand = frame.hands[0];
-            var handMesh = hand.data('riggedHand.mesh');
+            // var handMesh = hand.data('riggedHand.mesh');
 
-            var handPos = roundedPos(handMesh, hand.palmPosition);
+            // var handPos = roundedPos(handMesh, hand.palmPosition);
             // posDiv.text(hand.screenPosition(hand.palmPosition).map(Math.round));
-            posDiv.text([handPos.x, handPos.y]);
+            // posDiv.text([handPos.x, handPos.y]);
 
-            var btn = intersectingButton(handPos);
+            var handPos = hand.screenPosition().map(Math.round);
+            posDiv.text(handPos);
+            cursor.css({top: handPos[1], left: handPos[0]});
+
+            // var btn = intersectingButton(handPos);
 
             var prevGrabStr = previousGrabStrength(this, hand, 10);
             var isGrabbing = hand.grabStrength > prevGrabStr;
@@ -93,7 +107,7 @@ $(document).ready(function() {
     controller.use('screenPosition', screenPositionOptions);
 
     // controller.use('boneHand', boneHandOptions);
-    controller.use('riggedHand', riggedHandOptions);
+    // controller.use('riggedHand', riggedHandOptions);
     $('body').append(posDiv, posDiv2, otherDiv);
 
     buttons = $('.buttons').children();
@@ -101,13 +115,31 @@ $(document).ready(function() {
     // $('body').append(buttons);
     // $('.bigBtn').css({ width: 100, height: 100, opacity: 0.5 });
 
-    // $('body').append($('<div>').css({
-    //     width: 10,
-    //     height: 10,
-    //     'background-color': 'red',
-    //     position: 'absolute',
-    //     left: window.innerWidth/2,
-    //     top: 0
-    // }));
+    $('body').append($('<div>').css({
+        width: 10,
+        height: 10,
+        'background-color': 'red',
+        position: 'absolute',
+        left: 500,
+        top: 0
+    }));
+    $('body').append($('<div>').css({
+        width: 10,
+        height: 10,
+        'background-color': 'red',
+        position: 'absolute',
+        left: 300,
+        top: 100
+    }));
+    $('body').append($('<div>').css({
+        width: 10,
+        height: 10,
+        'background-color': 'red',
+        position: 'absolute',
+        left: 500,
+        top: 200
+    }));
+
+    $('body').append(cursor);
     // console.log(buttons[0].position())
 });
