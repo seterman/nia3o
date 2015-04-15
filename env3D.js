@@ -17,41 +17,35 @@ var Env3D = function() {
     $(renderer.domElement).css("position", "absolute").css("top", "0px").css("left", "0px").css("z-index", "-5");
     
     // Camera controls
-    var controls = new THREE.TrackballControls( camera, document );
-    controls.rotateSpeed = 1.5;
+    var controls = new THREE.TrackballControls(camera, document);
+    controls.rotateSpeed = 3;
     controls.zoomSpeed = 1.2;
     controls.panSpeed = 0.8;
 
     // Render loop
     var render = function () {
-	requestAnimationFrame( render );
+	requestAnimationFrame(render);
 	renderer.render(scene, camera);
         controls.update();
     };
     render();
 
-    // Components for figuring out where the mouse is and how the objects should react
-    var selectedObject, intersectedObject;
-    var raycaster = new THREE.Raycaster();
-    var mouse_vector = new THREE.Vector3();
-    var offset = new THREE.Vector3();
-    var plane = new THREE.Mesh(
-	new THREE.PlaneBufferGeometry( 2000, 2000, 8, 8 ),
-	new THREE.MeshBasicMaterial( { color: 0x000000, opacity: 0.25, transparent: true } )
-    );
-    plane.visible = false;
-    scene.add(plane);
-    
     // A wrapper for the objects that will be added by the user
     var objects = new THREE.Object3D();
     scene.add(objects);
-
+  
+    // Components for figuring out where the cursor is and how the objects should react
+    var raycaster = new THREE.Raycaster();
+    var cursorVector = new THREE.Vector3();
+    var selectedObject = null;
+    var hoverObject = null;
+  
     // Cast a ray from the camera to the cursor position.
     // The raycaster object can then be used to find intersecting objects.
     var castRay = function(clientX, clientY) {
-	mouse_vector.x = 2 * (clientX / window.innerWidth) - 1;
-	mouse_vector.y = 1 - 2 * (clientY / window.innerHeight);
-	raycaster.setFromCamera(mouse_vector.clone(), camera); 
+	cursorVector.x = 2 * (clientX / window.innerWidth) - 1;
+	cursorVector.y = 1 - 2 * (clientY / window.innerHeight);
+	raycaster.setFromCamera(cursorVector.clone(), camera); 
     };
 
     // Selects the first intersecting object, if one exists.
@@ -59,89 +53,95 @@ var Env3D = function() {
 	castRay(clientX, clientY);
 	var intersect = raycaster.intersectObjects(objects.children)[0];
 	if (intersect) {
-	    // Don't move the camera while an object is selected
-	    controls.enabled = false; 
-
+	    controls.enabled = false; // Don't move the camera while an object is selected
 	    selectedObject = intersect.object
-	    // Move the placeholder plane to the object's position
-	    plane.position.copy(selectedObject.position);
-	    plane.lookAt(camera.position);
-	    // Find the offset of the object using the plane
-	    var planeIntersect = raycaster.intersectObject(plane)[0];
-	    if (planeIntersect) {
-		offset.copy(planeIntersect.point).sub(plane.position);
-	    }
 	}
     };
 
-    // Deselect an object
-    var deselectObject = function() {
-	controls.enabled = true;
-	selectedObject = null;
-  };	
-
-    var lastHighlighted, origColor;
-    var HIGHLIGHT_COLOR = 0x0000ff;
-
-    // Highlights the first intersecting object, if one exists
-    var highlightObject = function(clientX, clientY) {
-	// If an object is selected, it's already highlighted.
-	if (!selectedObject) {
-	    // Revert the last highlight
-	    if (lastHighlighted) {
-		lastHighlighted.material.color.set(origColor);
-		lastHighlighted = null;
-	    }
-	    // Get the intersecting object and highlight it
-	    castRay(clientX, clientY)
-	    var intersect = raycaster.intersectObjects(objects.children)[0];
-	    if (intersect) {
-		lastHighlighted = intersect.object;
-		origColor = lastHighlighted.material.color.getHex();
-		intersect.object.material.color.set(HIGHLIGHT_COLOR);
-	    }
-	}
-    };
-
-    // Move the plane to the intersected object's position, so that it
-    // can be used to move that object if desired.
-    var updatePlane = function(clientX, clientY) {
+    // Updates hoverObject, which is the object the cursor is hovering over.
+    // The first intersecting object is taken if there are multiple.
+    var updateHoverObject = function(clientX, clientY) {
 	castRay(clientX, clientY);
 	var intersect = raycaster.intersectObjects(objects.children)[0];
-	if (intersect) {		
-	    if (intersectedObject != intersect.object) {
-		intersectedObject = intersect.object;
-		plane.position.copy(intersectedObject.position);
-		plane.lookAt(camera.position);
-	    }
+	if (intersect) {
+	    hoverObject = intersect.object;
 	}
-    }
+	else {
+	    hoverObject = null;
+	}
+    };
+
+    var HIGHLIGHT_COLOR = 0x0000ff; // Color used to highlight objects on hover
+
+    // Highlights an object
+    var highlightObject = function(object) {
+	// Store the original color so it can be reset later
+	object.userData.origColor = hoverObject.material.color.getHex();
+	object.material.color.set(HIGHLIGHT_COLOR);
+    };
+    
+    // Reset the object's color back to its original value.
+    var revertHighlight = function(object) {
+	object.material.color.set(object.userData.origColor);
+    };
+    
+    // Deselect an object
+    //TODO: it's a little sketchy that the mouse interface calls this even if there's not a selected object
+    var deselectObject = function() {	
+	controls.enabled = true;
+	if (selectedObject) {
+	    revertHighlight(selectedObject); //TODO: can we make selectedObject passed into most functions, instead of stored as a variable?
+	    selectedObject = null;	
+	}
+    };	
 
     // Moves the selected object according to the cursor's position
     var moveObject = function(clientX, clientY) {
 	if (selectedObject) {
-	    // Use the previously calculated offset and the intersection of the 
-	    // cursor ray and the placeholder plane to figure out the object's new location
-	    castRay(clientX, clientY);
-	    var planeIntersect = raycaster.intersectObject(plane)[0];
-	    if (planeIntersect) {
-		selectedObject.position.copy(planeIntersect.point.sub(offset));
-	    }
+	    // Calculate the z distance (in cam coords) between the projection plane and the camera
+	    // by projecting the object's position vector onto the camera's postion vector and
+	    // subtracting the projection from the camera's position vector.
+	    var objPosProj = selectedObject.position.clone().projectOnVector(camera.position);
+	    var projDist = camera.position.clone().sub(objPosProj).length();
+
+	    // Calculate the camera range at that distance by using some equilateral triangle geometery.
+	    var fovRads = camera.fov*3.14159265/180;
+	    var camHeight = 2*projDist*Math.tan(fovRads/2);
+	    var camWidth = camHeight*camera.aspect;
+	    
+	    // Compute the cursor's position in camera coordinates
+	    // TODO: should potentially use width/height of renderer's dom element instead of window
+	    var xCam = (clientX/window.innerWidth - 1/2)*camWidth;
+	    var yCam = -(clientY/window.innerHeight - 1/2)*camHeight;
+	    var coords = new THREE.Vector3(xCam, yCam, -projDist);
+
+	    // Transform the camera coordinates into the scene coordinates
+	    coords.applyMatrix4(camera.matrixWorld);
+
+	    // Move the object to the resulting position
+	    selectedObject.position.x = coords.x;
+	    selectedObject.position.y = coords.y;
+	    selectedObject.position.z = coords.z;
+	    
 	}
     };
 
+    // Perform appropriate behavior when the cursor moves
     var cursorMove = function(clientX, clientY) {
-	highlightObject(clientX, clientY);
+	// Move an object, if an object is selected
 	if (selectedObject) {
 	    moveObject(clientX, clientY);
+	}	
+	else{ // Remove/add hover highlights
+	    if (hoverObject) { 
+		revertHighlight(hoverObject);
+	    }
+	    updateHoverObject(clientX, clientY);
+	    if (hoverObject) {
+		highlightObject(hoverObject);
+	    }
 	}
-	else {
-	    // I don't know why the plane has to be updated everytime the 
-	    // cursor moves instead of just before an object is selected,
-	    // but it does. Otherwise there are non-deterministic bugs
-	    // with the object movement behavior.
-	    updatePlane(clientX, clientY);
-	}
+
     };
 
     // Currently adds a bunch of cubes, eventually will add one cube at a specified location
