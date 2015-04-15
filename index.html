@@ -1,16 +1,30 @@
 <!DOCTYPE html>
 <head>
+  <!-- Three -->
   <script src="http://threejs.org/build/three.min.js"></script>
+
+  <!-- Jquery -->
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+  
+  <!-- Leap -->
+  <script src="https://js.leapmotion.com/leap-0.6.4.js"></script>
+  <script src="https://js.leapmotion.com/leap-plugins-0.1.10.js"></script>
+  <script src="https://js.leapmotion.com/leap.rigged-hand-0.1.7.js"></script>
+
+  <!-- Other -->
+  <link rel="stylesheet" type="text/css" href="./styles.css"></link>
   <script src="trackball_controls.js"></script>
+  <!--<script src="leap-things.js"></script> <!-- Will be renamed -->
   <script src="env3D.js"></script>
   <script src="mouse_interface.js"></script>
+  <script src="leap_interface.js"></script>
   <script type="text/javascript">
     var env;
     $(document).ready(function() {
         $("body").css("margin", "0px");
         env = Env3D();
         MouseInterface(env);
+        LeapInterface(env);
     });
   </script>
 </head>

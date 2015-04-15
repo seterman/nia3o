@@ -1,0 +1,13 @@
+.intersecting-hand {
+    background-color: #90a4ad;
+}
+
+.buttons {
+    text-align: center;
+}
+
+.buttons button {
+    opacity: 0.5;
+    width: 100px;
+    height: 100px;
+}
