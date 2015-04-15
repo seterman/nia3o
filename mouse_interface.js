@@ -1,9 +1,21 @@
 // Adds functionality for the mouse
 var MouseInterface = function(env) {
+    var ACTIONS = { NONE: -1, PLACE_CUBE: 0 };
+    var actionState = ACTIONS.NONE;
     
     // Select an object when the mouse presses down on it
     $(document).mousedown(function(e) {
-	env.selectObject(e.clientX, e.clientY);
+	switch (actionState) {
+	case ACTIONS.NONE: 
+	    env.selectObject(e.clientX, e.clientY);
+	    break;
+	case ACTIONS.PLACE_CUBE:
+	    env.addCube(e.clientX, e.clientY);
+	    actionState = ACTIONS.NONE;
+	    break;
+	default:
+	    break;
+	}
     });
     
     // Do all the associated cursor move events when the mouse moves
@@ -25,7 +37,8 @@ var MouseInterface = function(env) {
 	],
 
 	Actions: [
-	    {label: "Add Cube", onClick: function() { env.addCube(); }}
+	    {label: "Add Cubes", onClick: function() { env.addCubes(); }},
+	    {label: "Add Cube", onClick: function() { actionState = ACTIONS.PLACE_CUBE; }}
 	]
     };
 

@@ -114,6 +114,40 @@ var Env3D = function() {
 	}
     };	
 
+    // clientZ is defined on the same axis as the camera's z-axis
+    // If using the mouse, default to the working plane that's -DEFAULT_CLIENT_Z units in front of the camera.
+    var DEFAULT_CLIENT_Z = -10;
+
+    // Transform the cursor's screen position to a position in the scene
+    var screenToScene = function(clientX, clientY, clientZ) {
+	if (clientZ == null) {
+	    clientZ = DEFAULT_CLIENT_Z;
+	}
+	if (clientZ > 0) {
+	    // A positive clientZ means the user is interacting with things on the wrong side 
+	    // of the camera.
+	    console.log("WARNING: clientZ is greater than 0.");
+	}
+
+	var planeDist = -clientZ;
+
+	// Calculate the camera range for a projection plane that's planeDist away by using 
+	// some equilateral triangle geometery.
+	var fovRads = camera.fov*3.14159265/180;
+	var camHeight = 2*planeDist*Math.tan(fovRads/2);
+	var camWidth = camHeight*camera.aspect;
+	
+	// Compute the cursor's position in camera coordinates
+	// TODO: should potentially use width/height of renderer's dom element instead of window
+	var xCam = (clientX/window.innerWidth - 1/2)*camWidth;
+	var yCam = -(clientY/window.innerHeight - 1/2)*camHeight;
+	var coords = new THREE.Vector3(xCam, yCam, -planeDist);
+
+	// Transform the camera coordinates into the scene coordinates
+	coords.applyMatrix4(camera.matrixWorld);
+	return coords;
+    };
+
     // Moves the selected object according to the cursor's position
     var moveObject = function(clientX, clientY) {
 	if (selectedObject) {
@@ -123,19 +157,8 @@ var Env3D = function() {
 	    var objPosProj = selectedObject.position.clone().projectOnVector(camera.position);
 	    var projDist = camera.position.clone().sub(objPosProj).length();
 
-	    // Calculate the camera range at that distance by using some equilateral triangle geometery.
-	    var fovRads = camera.fov*3.14159265/180;
-	    var camHeight = 2*projDist*Math.tan(fovRads/2);
-	    var camWidth = camHeight*camera.aspect;
-	    
-	    // Compute the cursor's position in camera coordinates
-	    // TODO: should potentially use width/height of renderer's dom element instead of window
-	    var xCam = (clientX/window.innerWidth - 1/2)*camWidth;
-	    var yCam = -(clientY/window.innerHeight - 1/2)*camHeight;
-	    var coords = new THREE.Vector3(xCam, yCam, -projDist);
-
-	    // Transform the camera coordinates into the scene coordinates
-	    coords.applyMatrix4(camera.matrixWorld);
+	    // Transform the position into scene coordinates
+	    var coords = screenToScene(clientX, clientY, -projDist);
 
 	    // Move the object to the resulting position
 	    selectedObject.position.x = coords.x;
@@ -163,8 +186,8 @@ var Env3D = function() {
 
     };
 
-    // Currently adds a bunch of cubes, eventually will add one cube at a specified location
-    var addCube = function() {
+    // Add a mass of cubes for testing
+    var addCubes = function() {
 	for (var x=-10; x<=10; x+=2) {
 	    for (var y=-3; y <= 3; y+=2) {
 		var geometry = new THREE.BoxGeometry( 1, 1, 1 );
@@ -178,9 +201,23 @@ var Env3D = function() {
 	}
     };
 
+    // Add an individual cube to the specified screen position
+    var addCube = function(clientX, clientY, clientZ) {
+	var geometry = new THREE.BoxGeometry(1, 1, 1);
+	var material = new THREE.MeshLambertMaterial({color: 0x00ff00});
+	material.side = THREE.DoubleSide;
+	var cube = new THREE.Mesh(geometry, material);
+	var coords = screenToScene(clientX, clientY, clientZ);
+	cube.position.x = coords.x;
+	cube.position.y = coords.y;
+	cube.position.z = coords.z;
+	objects.add(cube);
+    };
+
 
     return {
 	getRenderingComponents: getRenderingComponents,
+	addCubes: addCubes,
 	addCube: addCube,
 	setMode: function(state) {
 	    // camera control states
