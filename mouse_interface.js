@@ -8,14 +8,14 @@ var MouseInterface = function(env) {
     $(document).mousedown(function(e) {
 	switch (state) {
 	case STATES.NONE: // Select the object
-	    env.selectObject(e.clientX, e.clientY);
+	    env.selectObjectByIntersection(e.clientX, e.clientY);
 	    break;
 	case STATES.PLACE_CUBE: // Insert a cube
 	    env.addCube(e.clientX, e.clientY);
 	    state = STATES.NONE;
 	    break;
 	case STATES.PREP_ROTATE_OBJ: // Start rotating an object
-	    env.selectObject(e.clientX, e.clientY);
+	    env.selectObjectByIntersection(e.clientX, e.clientY);
 	    storedPos.x = e.clientX;
 	    storedPos.y = e.clientY;
 	    storedPos.z = 0;

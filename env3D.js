@@ -77,17 +77,22 @@ var Env3D = function() {
 	raycaster.setFromCamera(cursorVector.clone(), camera); 
     };
 
+    // Selects the given object
+    var selectObject = function(object) {
+	controls.enabled = false; // Don't move the camera while an object is selected
+	selectedObject = object;
+	if (hoverObject) {
+	    revertHighlight(hoverObject); // Make sure origColor is set to actual origColor and not HOVER_COLOR 
+	}
+	highlightObject(selectedObject, SELECT_COLOR);
+    };
+
     // Selects the first intersecting object, if one exists.
-    var selectObject = function(clientX, clientY) {
+    var selectObjectByIntersection = function(clientX, clientY) {
 	castRay(clientX, clientY);
 	var intersect = raycaster.intersectObjects(objects.children)[0];
 	if (intersect) {
-	    controls.enabled = false; // Don't move the camera while an object is selected
-	    selectedObject = intersect.object
-	    if (hoverObject) { 
-		revertHighlight(hoverObject); // Make sure origColor is set to actual origColor and not HOVER_COLOR 
-	    }
-	    highlightObject(selectedObject, SELECT_COLOR);
+	    selectObject(intersect.object);
 	}
     };
 
@@ -157,9 +162,10 @@ var Env3D = function() {
 	    var objPosProj = selectedObject.position.clone().projectOnVector(camera.position);
 	    var projDist = camera.position.clone().sub(objPosProj).length();
 
-	    if (clientZ != null) {
+	    if (clientZ == null) {
 		clientZ = -projDist;
 	    }
+
 	    // Transform the position into scene coordinates
 	    var coords = screenToScene(clientX, clientY, clientZ);
 
@@ -215,6 +221,7 @@ var Env3D = function() {
 	cube.position.y = coords.y;
 	cube.position.z = coords.z;
 	objects.add(cube);
+	return cube;
     };
 
     // Rotates an object based on p1 and p2, which are instances of THREE.Vector3 
@@ -257,6 +264,7 @@ var Env3D = function() {
 	    }
 	}, 
 	selectObject: selectObject,
+	selectObjectByIntersection: selectObjectByIntersection,
 	deselectObject: deselectObject,
 	rotateObject: rotateObject,
 	cursorMove: cursorMove
