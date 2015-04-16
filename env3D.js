@@ -149,7 +149,7 @@ var Env3D = function() {
     };
 
     // Moves the selected object according to the cursor's position
-    var moveObject = function(clientX, clientY) {
+    var moveObject = function(clientX, clientY, clientZ) {
 	if (selectedObject) {
 	    // Calculate the z distance (in cam coords) between the projection plane and the camera
 	    // by projecting the object's position vector onto the camera's postion vector and
@@ -157,8 +157,11 @@ var Env3D = function() {
 	    var objPosProj = selectedObject.position.clone().projectOnVector(camera.position);
 	    var projDist = camera.position.clone().sub(objPosProj).length();
 
+	    if (clientZ != null) {
+		clientZ = -projDist;
+	    }
 	    // Transform the position into scene coordinates
-	    var coords = screenToScene(clientX, clientY, -projDist);
+	    var coords = screenToScene(clientX, clientY, clientZ);
 
 	    // Move the object to the resulting position
 	    selectedObject.position.x = coords.x;
@@ -169,10 +172,10 @@ var Env3D = function() {
     };
 
     // Perform appropriate behavior when the cursor moves
-    var cursorMove = function(clientX, clientY) {
+    var cursorMove = function(clientX, clientY, clientZ) {
 	// Move an object, if an object is selected
 	if (selectedObject) {
-	    moveObject(clientX, clientY);
+	    moveObject(clientX, clientY, clientZ);
 	}	
 	else{ // Remove/add hover highlights
 	    if (hoverObject) { 
@@ -190,7 +193,7 @@ var Env3D = function() {
     var addCubes = function() {
 	for (var x=-10; x<=10; x+=2) {
 	    for (var y=-3; y <= 3; y+=2) {
-x		var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+		var geometry = new THREE.BoxGeometry( 1, 1, 1 );
 		var material = new THREE.MeshLambertMaterial( { color: 0x00ff00 } );
 		material.side = THREE.DoubleSide;
 		var cube = new THREE.Mesh( geometry, material );
