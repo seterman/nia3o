@@ -1,18 +1,5 @@
-.intersecting-hand {
-    background-color: #90a4ad;
-}
-
-.buttons {
-    text-align: center;
-}
-
-.buttons button {
-    opacity: 0.5;
-    width: 100px;
-    height: 100px;
-}
-
 .cursor {
+    opacity: .8;
     background-color: white;
     border-radius: 20px;
     width: 20px;
@@ -25,3 +12,25 @@
     font-size: 8pt;
     font-family: arial;
 }
+
+.dominant-cursor {
+    color: red;
+}
+
+.bin-container {
+    text-align: center;
+    padding: 10px;
+}
+
+.bin {
+    width: 80px;
+    height: 80px;
+    opacity: 0.8;
+    background-color: gray;
+    pointer-events: none;
+}
+
+.intersecting-hand {
+    background-color: #90a4ad;
+}
+
