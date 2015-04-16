@@ -94,8 +94,8 @@ var LeapInterface = function(env) {
 
     // GUI
     addCubeBtn.click(function(evt, handPos) {
-        env.addCube(handPos.x, handPos.y, leapZToSceneZ(handPos.z));
-        env.selectObject(handPos.x, handPos.y);
+        var cube = env.addCube(handPos.x, handPos.y, leapZToSceneZ(handPos.z));
+        env.selectObject(cube);
     });
     $('body').prepend(binContainer);
 
@@ -124,7 +124,7 @@ var LeapInterface = function(env) {
 
             // Move the scene cursor with one (and only one) hand
             if (h === '0') {
-                env.cursorMove(handPos.x, handPos.y);
+                env.cursorMove(handPos.x, handPos.y, leapZToSceneZ(handPos.z));
                 c.setDominant(true);
                 updateBinHighlights(intersectingBin);
             } else {
@@ -137,8 +137,9 @@ var LeapInterface = function(env) {
                 grabStartProcessed[hand.type] = true;
                 if (intersectingBin) {
                     intersectingBin.trigger('click', handPos);
+                } else {
+                    env.selectObjectByIntersection(handPos.x, handPos.y);
                 }
-                env.selectObject(handPos.x, handPos.y);
             }
             if (grabState == 'grabbing') {
                 // grab active
