@@ -1,31 +1,60 @@
 // Adds functionality for the mouse
 var MouseInterface = function(env) {
-    var ACTIONS = { NONE: -1, PLACE_CUBE: 0 };
-    var actionState = ACTIONS.NONE;
-    
-    // Select an object when the mouse presses down on it
+    var STATES = { NONE: -1, PLACE_CUBE: 0, PREP_ROTATE_OBJ: 1, ROTATE_OBJ: 2 };
+    var state = STATES.NONE;
+
+    var storedPos = new THREE.Vector3(); // Used to keep track of cursor position when needed
+
     $(document).mousedown(function(e) {
-	switch (actionState) {
-	case ACTIONS.NONE: 
+	switch (state) {
+	case STATES.NONE: // Select the object
 	    env.selectObject(e.clientX, e.clientY);
 	    break;
-	case ACTIONS.PLACE_CUBE:
+	case STATES.PLACE_CUBE: // Insert a cube
 	    env.addCube(e.clientX, e.clientY);
-	    actionState = ACTIONS.NONE;
+	    state = STATES.NONE;
 	    break;
+	case STATES.PREP_ROTATE_OBJ: // Start rotating an object
+	    env.selectObject(e.clientX, e.clientY);
+	    storedPos.x = e.clientX;
+	    storedPos.y = e.clientY;
+	    storedPos.z = 0;
+	    state = STATES.ROTATE_OBJ;
 	default:
 	    break;
 	}
     });
     
-    // Do all the associated cursor move events when the mouse moves
     $(document).mousemove(function(e) {
-	env.cursorMove(e.clientX, e.clientY);
+	switch (state) {
+	case STATES.NONE: // Do the typical cursor move actions
+	    env.cursorMove(e.clientX, e.clientY);
+	    break;
+	case STATES.ROTATE_OBJ: // Rotate an object
+	    var currPos = new THREE.Vector3(e.clientX, e.clientY, 0);
+	    env.rotateObject(storedPos.clone(), currPos.clone());
+	    storedPos = currPos.clone();
+	    break;
+	default:
+	    env.cursorMove(e.clientX, e.clientY);
+	    break;
+	}
     });
 
-    // Deselect an object when the mouse lifts up
+
     $(document).mouseup(function(e) {
-	env.deselectObject(e.clientX, e.clientY);
+	switch (state) {
+	case STATES.NONE: // Deselect the object
+	    env.deselectObject();
+	    break;
+	case STATES.ROTATE_OBJ: 
+	    // Stop the current rotation and prep for another rotation
+	    state = STATES.PREP_ROTATE_OBJ;
+	    env.deselectObject();
+	    break;
+	default:
+	    break;
+	}
     });
 
     // Stores the labels and onClick events for each GUI button
@@ -33,12 +62,13 @@ var MouseInterface = function(env) {
 	Modes: [
 	    {label: "Camera Rotate", onClick: function() { env.setMode(0); }},
 	    {label: "Camera Zoom", onClick: function() { env.setMode(1); }},
-	    {label: "Camera Pan", onClick: function() { env.setMode(2); }}
+	    {label: "Camera Pan", onClick: function() { env.setMode(2); }},
+	    {label: "Rotate Object", onClick: function() { state = STATES.PREP_ROTATE_OBJ; }}
 	],
 
 	Actions: [
 	    {label: "Add Cubes", onClick: function() { env.addCubes(); }},
-	    {label: "Add Cube", onClick: function() { actionState = ACTIONS.PLACE_CUBE; }}
+	    {label: "Add Cube", onClick: function() { state = STATES.PLACE_CUBE; }}
 	]
     };
 

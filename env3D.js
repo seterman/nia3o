@@ -190,7 +190,7 @@ var Env3D = function() {
     var addCubes = function() {
 	for (var x=-10; x<=10; x+=2) {
 	    for (var y=-3; y <= 3; y+=2) {
-		var geometry = new THREE.BoxGeometry( 1, 1, 1 );
+x		var geometry = new THREE.BoxGeometry( 1, 1, 1 );
 		var material = new THREE.MeshLambertMaterial( { color: 0x00ff00 } );
 		material.side = THREE.DoubleSide;
 		var cube = new THREE.Mesh( geometry, material );
@@ -214,6 +214,33 @@ var Env3D = function() {
 	objects.add(cube);
     };
 
+    // Rotates an object based on p1 and p2, which are instances of THREE.Vector3 
+    // and represent the before and after positions of the cursor respectively.
+    var rotateObject = function(p1, p2) {
+	if (selectedObject) { 
+	    
+	    // Get the object's position and the direction of the camera face
+	    var objPos = selectedObject.position.clone();
+	    var camZDir = new THREE.Vector3(0, 0, 1).applyMatrix4(camera.matrixWorld);
+	    
+	    // Transform p1 and p2 into scene coords and project them on the camera's projection plane
+	    p1 = objPos.clone().sub(screenToScene(p1.x, p1.y)).projectOnPlane(camZDir);
+	    p2 = objPos.clone().sub(screenToScene(p2.x, p2.y)).projectOnPlane(camZDir);
+	    
+	    // Use a quaternion method to get a rotation from p1 and p2 unit vectors
+	    var q = new THREE.Quaternion().setFromUnitVectors(p1.normalize(), p2.normalize());
+
+	    // Convert the quaternion into the same data type as object.rotation
+	    var e = new THREE.Euler(0, 0, 0, "XYZ").setFromQuaternion(q);
+
+	    // Add the calculated rotation to the object's current rotation
+	    selectedObject.rotation.x += e.x;
+	    selectedObject.rotation.y += e.y;
+	    selectedObject.rotation.z += e.z;
+	}
+    };
+    
+
 
     return {
 	getRenderingComponents: getRenderingComponents,
@@ -228,6 +255,7 @@ var Env3D = function() {
 	}, 
 	selectObject: selectObject,
 	deselectObject: deselectObject,
+	rotateObject: rotateObject,
 	cursorMove: cursorMove
     };
 };
