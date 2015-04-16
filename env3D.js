@@ -60,7 +60,7 @@ var Env3D = function() {
     // Highlights an object
     var highlightObject = function(object, color) {
 	// Store the original color so it can be reset later
-	object.userData.origColor = hoverObject.material.color.getHex();
+	object.userData.origColor = object.material.color.getHex();
 	object.material.color.set(color);
     };
     
