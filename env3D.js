@@ -236,8 +236,7 @@ var Env3D = function() {
 	var obj = new THREE.Mesh({}, new THREE.MeshBasicMaterial({color: 0x009900}));
 	switch(type) {
 	    case 0: // plane
-	        obj.geometry = new THREE.PlaneGeometry(5, 5);
-	        obj.material.side = THREE.DoubleSide; // render both sides of the plane
+	        obj.geometry = new THREE.BoxGeometry(5, 5, 1/500);
 	        obj.material.color.set(0xffffff);
 	        obj.material.transparent = true; // this has to be true for the opacity to work
 	        obj.material.opacity = 0.5;
@@ -281,9 +280,32 @@ var Env3D = function() {
 	    selectedObject.rotation.y += e.y;
 	    selectedObject.rotation.z += e.z;
 	}
-    };
-    
+    };   
 
+    var splitObject = function(object, plane) {
+	// Remove the original object from the scene
+	objects.remove(object);
+	// Extend the plane downwards and reposition it so the top face is at the 
+	// original plane position
+	plane = plane.clone();
+	var depth = 1000; // a large enough number to cover the entire object, hopefully
+	plane.geometry = new THREE.BoxGeometry(5, 5, depth); //TODO: make height and width dependent on plane size when passed in.
+	plane.position.y -= depth/2;
+	var planeBSP = new ThreeBSP(plane);
+	var objBSP = new ThreeBSP(object);
+	// subtract the extended plane from the object to create the top half.
+	var subtracted = objBSP.subtract(planeBSP);
+	var mesh1 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x00ff00}));
+	objects.add(mesh1);
+	// Reposition the extended plane so the bototm face is at the original
+	// plane position
+	plane.position.y += depth;
+	planeBSP = new ThreeBSP(plane);
+	// subtract again to create the bottom half
+	subtracted = objBSP.subtract(planeBSP);
+	var mesh2 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x00ff00}));
+	objects.add(mesh2);
+    };
 
     return {
 	getRenderingComponents: getRenderingComponents,
