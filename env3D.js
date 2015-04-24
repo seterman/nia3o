@@ -60,13 +60,13 @@ var Env3D = function() {
     // Highlights an object
     var highlightObject = function(object, color) {
 	// Store the original color so it can be reset later
-	object.userData.origColor = object.material.color.getHex();
-	object.material.color.set(color);
+//	object.userData.origColor = object.material.color.getHex();
+//	object.material.color.set(color);
     };
     
     // Reset the object's color back to its original value.
     var revertHighlight = function(object) {
-	object.material.color.set(object.userData.origColor);
+//	object.material.color.set(object.userData.origColor);
     };
     
     // Cast a ray from the camera to the cursor position.
@@ -96,6 +96,13 @@ var Env3D = function() {
 	}
     };
 
+    //TODO: need to take z into account
+    var getObjectByIntersection = function(pos) {
+	castRay(pos.x, pos.y);
+	return raycaster.intersectObjects(objects.children)[0];
+    };
+	
+
     // Updates hoverObject, which is the object the cursor is hovering over.
     // The first intersecting object is taken if there are multiple.
     var updateHoverObject = function(clientX, clientY) {
@@ -122,10 +129,11 @@ var Env3D = function() {
     // clientZ is defined on the same axis as the camera's z-axis
     // If using the mouse, default to the working plane that's -DEFAULT_CLIENT_Z units in front of the camera.
     var DEFAULT_CLIENT_Z = -10;
+    var NULL_CLIENT_Z = Infinity;
 
     // Transform the cursor's screen position to a position in the scene
     var screenToScene = function(clientX, clientY, clientZ) {
-	if (clientZ == null) {
+	if (clientZ == NULL_CLIENT_Z) {
 	    clientZ = DEFAULT_CLIENT_Z;
 	}
 	if (clientZ > 0) {
@@ -224,6 +232,31 @@ var Env3D = function() {
 	return cube;
     };
 
+    var insertObject = function(type, pos) {
+	var obj = new THREE.Mesh({}, new THREE.MeshBasicMaterial({color: 0x009900}));
+	switch(type) {
+	    case 0: // plane
+	        obj.geometry = new THREE.PlaneGeometry(5, 5);
+	        obj.material.side = THREE.DoubleSide; // render both sides of the plane
+	        obj.material.color.set(0xffffff);
+	        obj.material.transparent = true; // this has to be true for the opacity to work
+	        obj.material.opacity = 0.5;
+	        obj.rotation.x = 3.14/2; // make the plane normal face upwards TODO: make this dependent on camera angle
+	        break;
+	    case 1: // cone
+	        obj.geometry = new THREE.CylinderGeometry(0, 1/2, 1, 50, 0);
+	        break;
+	    default:
+	        return;
+	}
+	var coords = screenToScene(pos.x, pos.y, pos.z);
+	obj.position.x = coords.x;
+	obj.position.y = coords.y;
+	obj.position.z = coords.z;
+	objects.add(obj);
+	return obj;
+    };
+
     // Rotates an object based on p1 and p2, which are instances of THREE.Vector3 
     // and represent the before and after positions of the cursor respectively.
     var rotateObject = function(p1, p2) {
@@ -267,6 +300,13 @@ var Env3D = function() {
 	selectObjectByIntersection: selectObjectByIntersection,
 	deselectObject: deselectObject,
 	rotateObject: rotateObject,
-	cursorMove: cursorMove
+	cursorMove: cursorMove,
+	// new and improved env
+	setObjectColor: function(object, color) { object.material.color.set(color); },
+	insertObject: insertObject,
+	getObjectByIntersection: getObjectByIntersection, // name changed
+	splitObject: function(object, plane) {},
+	getCollidingObjects: function(object) {},
+	transformObject: function(object, deltaOri, deltaPos) {}
     };
 };

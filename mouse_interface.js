@@ -1,21 +1,29 @@
 // Adds functionality for the mouse
 var MouseInterface = function(env) {
-    var STATES = { NONE: -1, PLACE_CUBE: 0, PREP_ROTATE_OBJ: 1, ROTATE_OBJ: 2 };
+    var STATES = { NONE: -1, PLACE_PLANE: 0, PLACE_CONE: 1, PREP_ROTATE_OBJ: 2, ROTATE_OBJ: 3 };
     var state = STATES.NONE;
 
     var storedPos = new THREE.Vector3(); // Used to keep track of cursor position when needed
 
+    var NULL_CLIENT_Z = Infinity;
+
     $(document).mousedown(function(e) {
 	switch (state) {
 	case STATES.NONE: // Select the object
-	    env.selectObjectByIntersection(e.clientX, e.clientY);
+	    env.selectObjectByIntersection(e.clientX, e.clientY, NULL_CLIENT_Z);
 	    break;
-	case STATES.PLACE_CUBE: // Insert a cube
-	    env.addCube(e.clientX, e.clientY);
+	case STATES.PLACE_PLANE: // Insert a plane
+	    var pos = new THREE.Vector3(e.clientX, e.clientY, NULL_CLIENT_Z);
+	    env.insertObject(0, pos);
+	    state = STATES.NONE;
+	    break;
+	case STATES.PLACE_CONE: // Insert a cone
+	    var pos = new THREE.Vector3(e.clientX, e.clientY, NULL_CLIENT_Z);
+	    env.insertObject(1, pos);
 	    state = STATES.NONE;
 	    break;
 	case STATES.PREP_ROTATE_OBJ: // Start rotating an object
-	    env.selectObjectByIntersection(e.clientX, e.clientY);
+	    env.selectObjectByIntersection(e.clientX, e.clientY, NULL_CLIENT_Z);
 	    storedPos.x = e.clientX;
 	    storedPos.y = e.clientY;
 	    storedPos.z = 0;
@@ -28,15 +36,15 @@ var MouseInterface = function(env) {
     $(document).mousemove(function(e) {
 	switch (state) {
 	case STATES.NONE: // Do the typical cursor move actions
-	    env.cursorMove(e.clientX, e.clientY);
+	    env.cursorMove(e.clientX, e.clientY, NULL_CLIENT_Z);
 	    break;
 	case STATES.ROTATE_OBJ: // Rotate an object
-	    var currPos = new THREE.Vector3(e.clientX, e.clientY, 0);
+	    var currPos = new THREE.Vector3(e.clientX, e.clientY, NULL_CLIENT_Z);
 	    env.rotateObject(storedPos.clone(), currPos.clone());
 	    storedPos = currPos.clone();
 	    break;
 	default:
-	    env.cursorMove(e.clientX, e.clientY);
+	    env.cursorMove(e.clientX, e.clientY, NULL_CLIENT_Z);
 	    break;
 	}
     });
@@ -68,7 +76,8 @@ var MouseInterface = function(env) {
 
 	Actions: [
 	    {label: "Add Cubes", onClick: function() { env.addCubes(); }},
-	    {label: "Add Cube", onClick: function() { state = STATES.PLACE_CUBE; }}
+	    {label: "Add Plane", onClick: function() { state = STATES.PLACE_PLANE; }},
+	    {label: "Add Cone", onClick: function() { state = STATES.PLACE_CONE; }}
 	]
     };
 

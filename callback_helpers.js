@@ -36,7 +36,7 @@ $(document).ready(function() {
 
     // Inserts an object and makes it appear selected.
     // Returns the object.
-    var insertObject = function(type, pos) {
+    insertObject = function(type, pos) {
 	var selectedObj = Env.insertObject(type, pos);
 	Env.setObjectColor(selectedObj, SELECTED_COLOR);
 	return selectedObj;
@@ -44,7 +44,7 @@ $(document).ready(function() {
 
     // Figures out what object is being grabbed and makes it appear selected.
     // Returns the object.
-    var grabObject = function(pos) {
+    grabObject = function(pos) {
 	var selectedObj = Env.getIntersectingObject(pos);
 	if (selectedObj) {
 	    Env.setObjectColor(selectedObj, SELECTED_COLOR);
@@ -65,7 +65,7 @@ $(document).ready(function() {
     //
     // To only translate or only rotate an object, simply set the 
     // undesired delta parameter to be all zeros. 
-    var transformObject = function(obj, deltaOri, deltaPos, initPos) {
+    transformObject = function(obj, deltaOri, deltaPos, initPos) {
 
 	var selectedObj = obj;
 
@@ -107,7 +107,7 @@ $(document).ready(function() {
     
     // Make the object appear not selected.
     // Returns null for ease of assigning selected objects.
-    var dropObject = function(obj) {
+    dropObject = function(obj) {
 	Env.setObjectColor(obj, DEFAULT_COLOR);
 	return null; // Expliciyly return null, just in case.
     };
