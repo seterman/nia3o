@@ -66,8 +66,11 @@ var getGrabState = function(currentGrabStr, prevGrabStr) {
 
 // GUI
 var binContainer = $('<div class="bin-container">');
-var addCubeBtn = $('<div class="bin">Cube Bin</div>');
-binContainer.append(addCubeBtn);
+// var addCubeBtn = $('<div class="bin">Cube Bin</div>');
+// binContainer.append(addCubeBtn);
+var coneBin = $('<div class="bin">Cone Bin</div>');
+var planeBin = $('<div class="bin">Plane Bin</div>');
+binContainer.append(coneBin, planeBin);
 
 // indicate which (if any) of the controls are underneath the given
 // position. Return false if no bin intersects POS, or the bin
@@ -98,18 +101,30 @@ var updateBinHighlights = function(intersecting) {
     }
 };
 
+// setup after document loads
 var ROTATE_THRESHOLD = 0.5;
-var LeapInterface = function(env) {
+var LeapInterface = function(env, helpers) {
+    var OTHER_HAND = { 'left': 'right', 'right': 'left' };
     // state
     var cursors = { 'left': new Cursor(false), 'right': new Cursor(true) };
     var grabStartProcessed = { 'left': false, 'right': false };
     var grabEndProcessed = { 'left': false, 'right': false };
     var grabStartFrame = { 'left': null, 'right': null };
 
+    var currentSelection = { 'left': null, 'right': null };
+
     // GUI
-    addCubeBtn.click(function(evt, handPos) {
-        var cube = env.addCube(handPos.x, handPos.y, leapZToSceneZ(handPos.z));
-        env.selectObject(cube);
+    // addCubeBtn.click(function(evt, handPos) {
+    //     var cube = env.addCube(handPos.x, handPos.y, leapZToSceneZ(handPos.z));
+    //     env.selectObject(cube);
+    // });
+    coneBin.click(function(evt, handType, handPos) {
+        var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
+        currentSelection[handType] = helpers.insertObject(OBJECT_TYPES.CONE, pos);
+    });
+    planeBin.click(function(evt, handType, handPos) {
+        var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
+        currentSelection[handType] = helpers.insertObject(OBJECT_TYPES.PLANE, pos);
     });
     $('body').prepend(binContainer);
 
@@ -125,41 +140,49 @@ var LeapInterface = function(env) {
             var hand = frame.hands[h];
             var handPosRaw = hand.screenPosition().map(Math.round);
             var handPos = { x: handPosRaw[0], y: handPosRaw[1], z: handPosRaw[2] };
+            var handType = hand.type;
 
             var prvGrabStr = previousGrabStrength(this, hand, 10);
             var grabState = getGrabState(hand.grabStrength, prvGrabStr);
 
             var intersectingBin = findIntersectingBin(handPos);
+            updateBinHighlights(intersectingBin);
+
+            helpers.highlightObjectByPos(handPos);
 
             // Move the interface cursors
-            var c = cursors[hand.type];
+            var c = cursors[handType];
             c.setPosition(handPos);
             c.show();
 
             // Move the scene cursor with one (and only one) hand
-            if (h === '0') {
-                env.cursorMove(handPos.x, handPos.y, leapZToSceneZ(handPos.z));
-                c.setDominant(true);
-                updateBinHighlights(intersectingBin);
-            } else {
-                c.setDominant(false);
-            }
+            // if (h === '0') {
+            //     env.cursorMove(handPos.x, handPos.y, leapZToSceneZ(handPos.z));
+            //     c.setDominant(true);
+            //     updateBinHighlights(intersectingBin);
+            // } else {
+            //     c.setDominant(false);
+            // }
 
             // Process grab state
-            if (grabState == 'grabStart' && !grabStartProcessed[hand.type]) {
+            if (grabState == 'grabStart' && !grabStartProcessed[handType]) {
                 // grab started
-                grabStartProcessed[hand.type] = true;
-                grabStartFrame[hand.type] = frame;
+                grabStartProcessed[handType] = true;
+                grabStartFrame[handType] = frame;
                 if (intersectingBin) {
-                    intersectingBin.trigger('click', handPos);
+                    intersectingBin.trigger('click', [handType, handPos]);
                 } else {
-                    env.selectObjectByIntersection(handPos.x, handPos.y);
+                    var selection = helpers.selectObjectByPos(handPos);
+                    if (currentSelection[OTHER_HAND[handType]] != selection) {
+                        currentSeletion[handType] = selection;
+                    }
+                    // env.selectObjectByIntersection(handPos.x, handPos.y);
                 }
             }
             if (grabState == 'grabbing') {
                 // grab active
                 var x, y, z, total;
-                var start = grabStartFrame[hand.type];
+                var start = grabStartFrame[handType];
                 x = hand.rotationAngle(start, [1, 0, 0]);
                 y = hand.rotationAngle(start, [0, 1, 0]);
                 z = hand.rotationAngle(start, [0, 0, 1]);
@@ -169,27 +192,28 @@ var LeapInterface = function(env) {
                 } else {
                     c.clearRotation();
                 }
-                // console.log('axis:', hand.rotationAxis(grabStartFrame[hand.type]));
+                // console.log('axis:', hand.rotationAxis(grabStartFrame[handType]));
             }
-            if (grabState == 'grabEnd' && !grabEndProcessed[hand.type]) {
+            if (grabState == 'grabEnd' && !grabEndProcessed[handType]) {
                 // grab ended
-                grabEndProcessed[hand.type] = true;
-                grabStartFrame[hand.type] = null;
-                c.clearRotation();
-                env.deselectObject();
+                grabEndProcessed[handType] = true;
+                grabStartFrame[handType] = null;
+                // c.clearRotation();
+                // env.deselectObject();
             }
             if (grabState == 'notGrabbing') {
-                grabStartFrame[hand.type] = null;
+                grabStartFrame[handType] = null;
                 c.clearRotation();
-                env.deselectObject();
+                currentSelection[handType] = helpers.deselectObject(currentSelection[handType]);
+                // env.deselectObject();
             }
 
             // reset grab start/end processing
             if (grabState != 'grabStart') {
-                grabStartProcessed[hand.type] = false;
+                grabStartProcessed[handType] = false;
             }
             if (grabState != 'grabEnd') {
-                grabEndProcessed[hand.type] = false;
+                grabEndProcessed[handType] = false;
             }
 
             

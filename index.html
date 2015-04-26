@@ -18,14 +18,16 @@
   <script src="env3D.js"></script>
   <script src="callback_helpers.js"></script>
   <script src="mouse_interface.js"></script>
+  <script src="callback_helpers_leap.js"></script>
   <script src="leap_interface.js"></script>
   <script type="text/javascript">
     var env;
     $(document).ready(function() {
         $("body").css("margin", "0px");
         env = Env3D();
-        MouseInterface(env);
-        //LeapInterface(env);
+        // MouseInterface(env);
+        var helpers = prepareHelpers(env);
+        LeapInterface(env, helpers);
     });
   </script>
 </head>

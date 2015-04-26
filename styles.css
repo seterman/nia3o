@@ -38,6 +38,7 @@
     display: inline-block;
     line-height: 80px;
     vertical-align: middle;
+    margin: 5px;
 }
 
 .intersecting-hand {
