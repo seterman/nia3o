@@ -205,6 +205,50 @@ var Env3D = function() {
 	return coords;
     };
 
+    var DEFAULT_DEPTH = -5;
+
+    // Convert a coordinate value into scene units.
+    // min - the min of the coordinate value range
+    // max - the max of the coordinate value range
+    // val - the actual coordinate value
+    // dim - "x" or "y", the dimension the coordinate represents
+    // depth - how far away from the camera the plane is, in scene units
+    var convertToSceneUnits = function(min, max, val, dim, depth) {
+	if ( depth == null) {
+	    depth = DEFAULT_DEPTH;
+	}
+	depth = Math.abs(depth);
+	var span = max-min;
+	var relVal = val-min;
+	
+	// Calculate the camera range for a projection plane that's depth units
+	// away by utilizing some equilateral triangle geometery.
+	var fovRads = camera.fov*3.14159265/180;
+	var camHeight = 2*depth*Math.tan(fovRads/2);
+	var camVal;
+	var camCoords = new THREE.Vector3(0, 0, depth);
+	if (dim === "x") {
+	    var camWidth = camHeight*camera.aspect;
+	    camVal = (relVal/span - 1/2)*camWidth;
+	    camCoords.x = camVal;
+	}
+	else if (dim === "y") {
+	    camVal = -(relVal/span - 1/2)*camHeight;
+	    camCoords.y = camVal;
+	}
+
+	// Transform the camera coordinates into the scene coordinates
+	camCoords.applyMatrix4(camera.matrixWorld);
+	
+	if (dim === "x") {
+	    return camCoords.x;
+	}
+	else if (dim === "y") {
+	    return camCoords.y;
+	}
+    };
+
+
     // Moves the selected object according to the cursor's position
     var moveObject = function(clientX, clientY, clientZ) {
 	if (selectedObject) {
@@ -357,6 +401,14 @@ var Env3D = function() {
 	objects.add(mesh2);
     };
 
+    // Transforms (rotates and translates) an object
+    // deltaOri - THREE.Vector3, the change in rotation along each axis in radians
+    // deltaPos - THREE.Vector3, the change in position along each axis in scene units
+    var transformObject = function(object, deltaOri, deltaPos) {
+	object.position.add(deltaPos);
+	object.rotation.setFromVector3(deltaOri.add(object.rotation.toVector3()));
+    };
+
     return {
 	getRenderingComponents: getRenderingComponents,
 	addCubes: addCubes,
@@ -379,6 +431,7 @@ var Env3D = function() {
 	getObjectByIntersection: getObjectByIntersection, // name changed
 	splitObject: splitObject,
 	getCollidingObjectIds: getCollidingObjectIds, // name changed
-	transformObject: function(object, deltaOri, deltaPos) {}
+	transformObject: transformObject,
+	convertToSceneUnits: convertToSceneUnits
     };
 };
