@@ -22,6 +22,8 @@ var Env3D = function() {
     controls.zoomSpeed = 1.2;
     controls.panSpeed = 0.8;
 
+    controls.enabled = false; //TODO: integrate camera controls later
+
     // Render loop
     var render = function () {
 	requestAnimationFrame(render);
@@ -99,11 +101,14 @@ var Env3D = function() {
     //TODO: need to take z into account
     var getObjectByIntersection = function(pos) {
 	castRay(pos.x, pos.y);
-	return raycaster.intersectObjects(objects.children)[0];
+	var intersect = raycaster.intersectObjects(objects.children)[0];
+	if (intersect) {
+	    return intersect.object;
+	}
     };
 
-    // Get the ids of the objects that cross the plane
-    var getCollidingObjectIds = function(plane) {
+    // Get the names of the objects that cross the plane
+    var getCollidingObjectNames = function(plane) {
 	var domain = objects.clone();
 	// Remove planes from the domain
 	// Loop backwards to avoid dynamic index problems
@@ -248,7 +253,6 @@ var Env3D = function() {
 	}
     };
 
-
     // Moves the selected object according to the cursor's position
     var moveObject = function(clientX, clientY, clientZ) {
 	if (selectedObject) {
@@ -375,8 +379,8 @@ var Env3D = function() {
 	}
     };   
 
-    var splitObject = function(objectId, plane) {
-	var object = objects.getObjectById(objectId);
+    var splitObject = function(objectName, plane) {
+	var object = objects.getObjectByName(objectName);
 	// Remove the original object from the scene
 	objects.remove(object);
 	// Extend the plane downwards and reposition it so the top face is at the 
@@ -390,6 +394,9 @@ var Env3D = function() {
 	// subtract the extended plane from the object to create the top half.
 	var subtracted = objBSP.subtract(planeBSP);
 	var mesh1 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x009900}));
+	mesh1.material.side = THREE.DoubleSide;
+	mesh1.geometry.computeVertexNormals();
+	mesh1.name = objectName+"-0";
 	objects.add(mesh1);
 	// Reposition the extended plane so the bototm face is at the original
 	// plane position
@@ -398,7 +405,11 @@ var Env3D = function() {
 	// subtract again to create the bottom half
 	subtracted = objBSP.subtract(planeBSP);
 	var mesh2 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x009900}));
+	mesh2.material.side = THREE.DoubleSide;
+	mesh2.geometry.computeVertexNormals();
+	mesh2.name = objectName+"-1";
 	objects.add(mesh2);
+	return [mesh1, mesh2];
     };
 
     // Transforms (rotates and translates) an object
@@ -428,10 +439,13 @@ var Env3D = function() {
 	// new and improved env
 	setObjectColor: function(object, color) { object.material.color.set(color); },
 	insertObject: insertObject,
-	getObjectByIntersection: getObjectByIntersection, // name changed
+	getObjectByIntersection: getObjectByIntersection,
 	splitObject: splitObject,
-	getCollidingObjectIds: getCollidingObjectIds, // name changed
+	getCollidingObjectNames: getCollidingObjectNames,
 	transformObject: transformObject,
-	convertToSceneUnits: convertToSceneUnits
+	convertToSceneUnits: convertToSceneUnits,
+	removeByName: function(name) { objects.remove(objects.getObjectByName(name)); },
+	addObject: function(obj) { objects.add(obj); },
+	getObjectByName: function(name) { return objects.getObjectByName(name); }
     };
 };

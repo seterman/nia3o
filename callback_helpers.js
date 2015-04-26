@@ -9,8 +9,9 @@ var insertObject, grabObject, transformObject, dropObject;
 $(document).ready(function() {
 
     // Color constants
-    var SELECT_COLOR = 0xff0000;
-    var DEFAULT_COLOR = 0x00ff00;
+    var SELECTED_COLOR = 0xff0000;
+    var DEFAULT_COLOR = 0x009900;
+    var PLANE_COLOR = 0xffffff;
 
     // Object type enumerables
     var OBJECT_TYPES = {
@@ -18,36 +19,61 @@ $(document).ready(function() {
 	CONE: 1
     };
 
-    // Keeps track of what planes could potentially cut which objects.
-    // Elements are of the form {plane: planeObj, objects: [array of objects intersected by the plane]}
-    var toBeSplit = [];
+    // Keeps track of splits so that they can be remerged if the plane moves.
+    // Elements are of the form {
+    //    planeName: the name of the plane, 
+    //    pieceNames: an array of the names of the split pieces,
+    //    wholeObject: a copy of the object before it was split
+    // }
+    var splits = [];
 
-    // Removes the first element from toBeSplit whose plane property equals the passed in plane.
-    var removePotentialSplit(plane) {
-	if (plane.type == OBJECT_TYPES.PLANE) {
-            for (var i in toBeSplit) {
-                if (plane == toBeSplit[i].plane) {
-                    toBeSplit.splice(i, 1);
+    // Finalizes a split given a piece name. Also removes the plane if all of
+    // its colliding objects have been officially split.
+    var removeSplitByPieceName = function(name) {
+	var planeName;
+	var removePlane = true;
+
+	// remove the split from splits
+	for (var i in splits) {
+	    for (var j in splits[i].pieceNames) {
+		if (name == splits[i].pieceNames[j]) {
+		    planeName = splits[i].planeName;
+		    splits.splice(i, 1);
 		    break;
-                }
-            }
-        }
+		}
+	    }
+	}
+	
+	// check if the plane should be removed
+	if (planeName) {
+	    for (var i in splits) {
+		if (splits[i].planeName == planeName) {
+		    removePlane = false;
+		    break;
+		}
+	    }
+	    // remove the plane
+	    if (removePlane) {
+		env.removeByName(planeName);
+	    }
+	}
     };
+	    
 
     // Inserts an object and makes it appear selected.
     // Returns the object.
     insertObject = function(type, pos) {
-	var selectedObj = Env.insertObject(type, pos);
-	Env.setObjectColor(selectedObj, SELECTED_COLOR);
+	var selectedObj = env.insertObject(type, pos);
+	env.setObjectColor(selectedObj, SELECTED_COLOR);
 	return selectedObj;
     };
 
     // Figures out what object is being grabbed and makes it appear selected.
     // Returns the object.
     grabObject = function(pos) {
-	var selectedObj = Env.getIntersectingObject(pos);
+	var selectedObj = env.getObjectByIntersection(pos);
 	if (selectedObj) {
-	    Env.setObjectColor(selectedObj, SELECTED_COLOR);
+	    env.setObjectColor(selectedObj, SELECTED_COLOR);
 	}
 	return selectedObj;
     };
@@ -66,49 +92,58 @@ $(document).ready(function() {
     // To only translate or only rotate an object, simply set the 
     // undesired delta parameter to be all zeros. 
     transformObject = function(obj, deltaOri, deltaPos, initPos) {
-
 	var selectedObj = obj;
-
-	// Check if the object is part of a potential split
-	loop:
-	for (var i in toBeSplit) {
-	    var potentialSplit = toBeSplit[i];
-	    for (var j in potentialSplit.objects) {
-		if (obj == potentialSplit.objects[j]) {
-
-		    // Split the object and grab the appropriate piece
-		    Env.setObjectColor(obj, DEFAULT_COLOR);
-		    Env.splitObject(obj, potentialSplit.plane);
-		    selectedObj = grabObject(initPos);
-
-		    // Remove the corresponding data from toBeSplit
-		    potentialSplit.objects = Env.getCollidingObjects(potentialSplit.plane);
-		    if (potentialSplit.objects.length == 0) {			
-			toBeSplit.splice(i, 1);
+	// If the object is a plane, remerge its split pieces.
+	if (selectedObj.userData.isPlane) {
+	    for (var i = splits.length-1; i >= 0; i--) {
+		if (splits[i].planeName == selectedObj.name) {
+		    // remove each piece
+		    for (var j in splits[i].pieceNames) {
+			env.removeByName(splits[i].pieceNames[j]);
 		    }
-		    break loop; // prevent problems with changing indicies and 
-		                // keep semantics simple by only cutting one 
-		                // object along one plane at a time.
+		    // re-add the original object
+		    env.addObject(splits[i].wholeObject);
+		    splits.splice(i, 1);
 		}
 	    }
 	}
-	
-	// Actually transform the object
-	Env.transformObject(selectedObj, deltaOri, deltaPos); 
-
-	// If the transformed object is a plane, update the potential split
-	if (selectedObj.type == OBJECT_TYPES.PLANE) {
-	    removePotentialSplit(selectedObj);
-	    toBeSplit.push({plane: selectedObj, objects: Env.getCollidingObjects(obj)});
+	// If the object isn't a plane, finalize the split.
+	else {
+	    removeSplitByPieceName(selectedObj.name);
 	}
+
+	// Actually transform the object
+	env.transformObject(selectedObj, deltaOri, deltaPos); 
 
 	return selectedObj;
     };	
-    
+
     // Make the object appear not selected.
     // Returns null for ease of assigning selected objects.
     dropObject = function(obj) {
-	Env.setObjectColor(obj, DEFAULT_COLOR);
+	// If the object is a plane, preliminarily split the 
+	// objects it intersects
+	if (obj.userData.isPlane) {
+	    // Planes get a different color
+	    env.setObjectColor(obj, PLANE_COLOR);
+
+	    var collisions = env.getCollidingObjectNames(obj);
+	    for (var i in collisions) {
+		var split = {
+		    planeName: obj.name,
+		    pieceNames: [],
+		    wholeObject: env.getObjectByName(collisions[i])
+		};
+		var pieces = env.splitObject(collisions[i], obj);
+		for (var j in pieces) {
+		    split.pieceNames.push(pieces[j].name);
+		}
+		splits.push(split);
+	    }
+	}
+	else {
+	    env.setObjectColor(obj, DEFAULT_COLOR);
+	}
 	return null; // Expliciyly return null, just in case.
     };
 
