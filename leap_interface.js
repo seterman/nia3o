@@ -12,6 +12,10 @@ var Cursor = function(isRightHand) {
         });
     };
     this.setRotation = function(x, y, z) {
+        if (x == y == z === 0) {
+            this.clearRotation();
+            return;
+        }
         el.css({
             transform: 'scale('+scale+') rotateX('+x+'rad) rotateY('+y+'rad) rotateZ('+z+'rad)'
         }).addClass('rotating');
@@ -31,6 +35,8 @@ var Cursor = function(isRightHand) {
     return this;
 };
 
+// empirically determined values to convert from leap coordinates to THREE
+// coordinates and size of cursor
 var leapZToSceneZ = function(leapZ) {
     return (leapZ - 320) * 0.02;
 };
@@ -103,30 +109,49 @@ var updateBinHighlights = function(intersecting) {
 
 // setup after document loads
 var ROTATE_THRESHOLD = 0.5;
+var getRotation = function(hand, startFrame) {
+    var xRot, yRot, zRot, total;
+    xRot = hand.rotationAngle(start, [1, 0, 0]);
+    yRot = hand.rotationAngle(start, [0, 1, 0]);
+    zRot = hand.rotationAngle(start, [0, 0, 1]);
+    total = hand.rotationAngle(start);
+    if (Math.abs(total) < ROTATE_THRESHOLD) {
+        xRot = 0;
+        yRot = 0;
+        zRot = 0;
+    }
+    return { x: xRot, y: yRot, z: zRot };
+};
+
 var LeapInterface = function(env, helpers) {
-    // var OTHER_HAND = { 'left': 'right', 'right': 'left' };
-    // state
-    // var cursors = { 'left': new Cursor(false), 'right': new Cursor(true) };
-    // var grabStartProcessed = { 'left': false, 'right': false };
-    // var grabEndProcessed = { 'left': false, 'right': false };
-    // var grabStartFrame = { 'left': null, 'right': null };
+    // env-dependent helpers
+    var handPosToTransformPos = function(x, y, z) {
+        var newZ = leapZToSceneZ(z);
+        var newX = env.convertToSceneUnits(0, window.innerWidth, x, 'x', z);
+        var newY = env.convertToSceneUnits(0, window.innerHeight, y, 'y', z);
+    };
 
-    // var currentSelection = { 'left': null, 'right': null };
-
+    // TESTING ONLY
+    env.addCubes();
+    
+    // TODO: add a 'seenThisFrame' attribute and if not seen, hide cursor and clear
+    // highlights/selections/etc
     var handState = {
         left: {
             cursor: new Cursor(false),
             grabStartProcessed: false,
             grabStartFrame: null,
             grabEndProcessed: false,
-            currentSelection: null
+            currentSelection: null,
+            currentHighlight: null,
         },
         right: {
             cursor: new Cursor(true),
             grabStartProcessed: false,
             grabStartFrame: null,
             grabEndProcessed: false,
-            currentSelection: null
+            currentSelection: null,
+            currentHighlight: null,
         }
     };
     handState.left.otherHand = handState.right;
@@ -170,26 +195,13 @@ var LeapInterface = function(env, helpers) {
             var intersectingBin = findIntersectingBin(handPos);
             updateBinHighlights(intersectingBin);
 
-            helpers.highlightObjectByPos(handPos);
-
             // Move the interface cursors
             var c = thisHand.cursor;
-            // var c = cursors[handType];
             c.setPosition(handPos);
             c.show();
 
-            // Move the scene cursor with one (and only one) hand
-            // if (h === '0') {
-            //     env.cursorMove(handPos.x, handPos.y, leapZToSceneZ(handPos.z));
-            //     c.setDominant(true);
-            //     updateBinHighlights(intersectingBin);
-            // } else {
-            //     c.setDominant(false);
-            // }
-
             // Process grab state
             if (grabState == 'grabStart' && !thisHand.grabStartProcessed) {
-            // if (grabState == 'grabStart' && !grabStartProcessed[handType]) {
                 // grab started
                 thisHand.grabStartProcessed = true;
                 thisHand.grabStartFrame = frame;
@@ -205,31 +217,44 @@ var LeapInterface = function(env, helpers) {
             }
             if (grabState == 'grabbing') {
                 // grab active
-                var x, y, z, total;
+                // *******************************************
+                // var xRot, yRot, zRot, total;
                 var start = thisHand.grabStartFrame;
-                x = hand.rotationAngle(start, [1, 0, 0]);
-                y = hand.rotationAngle(start, [0, 1, 0]);
-                z = hand.rotationAngle(start, [0, 0, 1]);
-                total = hand.rotationAngle(start);
-                if (Math.abs(total) > ROTATE_THRESHOLD) {
-                    c.setRotation(x, y, z);
-                } else {
-                    c.clearRotation();
-                }
+                var rotation = getRotation(hand, start);
+                c.setRotation(rotation.x, rotation.y, rotation.z);
+                var translation = handPosToTransformPos(hand.translation(start));
+                // TODO: split and transform here!!
+
+                // xRot = hand.rotationAngle(start, [1, 0, 0]);
+                // yRot = hand.rotationAngle(start, [0, 1, 0]);
+                // zRot = hand.rotationAngle(start, [0, 0, 1]);
+                // total = hand.rotationAngle(start);
+                // if (Math.abs(total) > ROTATE_THRESHOLD) {
+                //     c.setRotation(xRot, yRot, zRot);
+                // } else {
+                //     c.clearRotation();
+                // }
                 // console.log('axis:', hand.rotationAxis(grabStartFrame[handType]));
             }
             if (grabState == 'grabEnd' && !thisHand.grabEndProcessed) {
                 // grab ended
+                // this is finicky. Does not always seem to run, so
+                // all essential clearing should go in notGrabbing
                 thisHand.grabEndProcessed = true;
                 thisHand.grabStartFrame = null;
-                // c.clearRotation();
-                // env.deselectObject();
             }
             if (grabState == 'notGrabbing') {
                 thisHand.grabStartFrame = null;
                 c.clearRotation();
-                thisHand.currentSelection = helpers.deselectObject(thisHand.currentSelection);
-                // env.deselectObject();
+                helpers.deselectObject(thisHand.currentSelection);
+                thisHand.currentSelection = null;
+
+                var newHighlight = helpers.highlightObjectByPos(handPos);
+                if (newHighlight != thisHand.currentHighlight) {
+                    helpers.clearHighlight(thisHand.currentHighlight);
+                }
+                thisHand.currentHighlight = newHighlight;
+
             }
 
             // reset grab start/end processing

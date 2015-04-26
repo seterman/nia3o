@@ -47,10 +47,16 @@ var prepareHelpers = function(Env) {
     helpers.highlightObjectByPos = function(pos) {
         var highlightedObj = Env.getObjectByIntersection(pos);
         if (highlightedObj) {
-            console.log(highlightedObj);
             Env.setObjectColor(highlightedObj, HOVER_COLOR);
         }
         return highlightedObj;
+    };
+
+    helpers.clearHighlight = function(obj) {
+        if (obj) {
+            Env.setObjectColor(obj, DEFAULT_COLOR);
+        }
+        return null;
     };
 
     // Figures out what object is being grabbed and makes it appear selected.
