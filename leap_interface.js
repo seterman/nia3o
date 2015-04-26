@@ -1,13 +1,25 @@
 var Cursor = function(isRightHand) {
     var el = $('<div class="cursor">').text(isRightHand ? 'R' : 'L');
+    var scale = 1;
     $('body').append(el);
 
     this.setPosition = function(newPos) {
+        scale = leapZToScale(newPos.z);
         el.css({
             top: newPos.y,
             left: newPos.x,
-            transform: 'scale(' + leapZToScale(newPos.z) + ')'
+            transform: 'scale(' + scale + ')'
         });
+    };
+    this.setRotation = function(x, y, z) {
+        el.css({
+            transform: 'scale('+scale+') rotateX('+x+'rad) rotateY('+y+'rad) rotateZ('+z+'rad)'
+        }).addClass('rotating');
+    };
+    this.clearRotation = function() {
+        el.css({
+            transform: 'scale('+scale+')'
+        }).removeClass('rotating');
     };
 
     this.hide = function() { el.hide(); };
@@ -54,7 +66,7 @@ var getGrabState = function(currentGrabStr, prevGrabStr) {
 
 // GUI
 var binContainer = $('<div class="bin-container">');
-var addCubeBtn = $('<button class="bin">Cube Bin</button>');
+var addCubeBtn = $('<div class="bin">Cube Bin</div>');
 binContainer.append(addCubeBtn);
 
 // indicate which (if any) of the controls are underneath the given
@@ -86,11 +98,13 @@ var updateBinHighlights = function(intersecting) {
     }
 };
 
+var ROTATE_THRESHOLD = 0.5;
 var LeapInterface = function(env) {
     // state
     var cursors = { 'left': new Cursor(false), 'right': new Cursor(true) };
     var grabStartProcessed = { 'left': false, 'right': false };
     var grabEndProcessed = { 'left': false, 'right': false };
+    var grabStartFrame = { 'left': null, 'right': null };
 
     // GUI
     addCubeBtn.click(function(evt, handPos) {
@@ -135,6 +149,7 @@ var LeapInterface = function(env) {
             if (grabState == 'grabStart' && !grabStartProcessed[hand.type]) {
                 // grab started
                 grabStartProcessed[hand.type] = true;
+                grabStartFrame[hand.type] = frame;
                 if (intersectingBin) {
                     intersectingBin.trigger('click', handPos);
                 } else {
@@ -143,10 +158,29 @@ var LeapInterface = function(env) {
             }
             if (grabState == 'grabbing') {
                 // grab active
+                var x, y, z, total;
+                var start = grabStartFrame[hand.type];
+                x = hand.rotationAngle(start, [1, 0, 0]);
+                y = hand.rotationAngle(start, [0, 1, 0]);
+                z = hand.rotationAngle(start, [0, 0, 1]);
+                total = hand.rotationAngle(start);
+                if (Math.abs(total) > ROTATE_THRESHOLD) {
+                    c.setRotation(x, y, z);
+                } else {
+                    c.clearRotation();
+                }
+                // console.log('axis:', hand.rotationAxis(grabStartFrame[hand.type]));
             }
             if (grabState == 'grabEnd' && !grabEndProcessed[hand.type]) {
                 // grab ended
                 grabEndProcessed[hand.type] = true;
+                grabStartFrame[hand.type] = null;
+                c.clearRotation();
+                env.deselectObject();
+            }
+            if (grabState == 'notGrabbing') {
+                grabStartFrame[hand.type] = null;
+                c.clearRotation();
                 env.deselectObject();
             }
 
