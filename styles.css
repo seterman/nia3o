@@ -1,7 +1,7 @@
 .cursor {
     opacity: .8;
     background-color: white;
-    border-radius: 20px;
+    /*border-radius: 20px;*/
     width: 20px;
     height: 20px;
     line-height: 20px;
@@ -13,6 +13,10 @@
     font-family: arial;
 }
 
+.rotating {
+    background-color: blue;
+}
+
 .dominant-cursor {
     color: red;
 }
@@ -20,6 +24,9 @@
 .bin-container {
     text-align: center;
     padding: 10px;
+    position: absolute;
+    bottom: 10px;
+    width: 100%;
 }
 
 .bin {
@@ -28,9 +35,12 @@
     opacity: 0.8;
     background-color: gray;
     pointer-events: none;
+    display: inline-block;
+    line-height: 80px;
+    vertical-align: middle;
 }
 
 .intersecting-hand {
-    background-color: #90a4ad;
+    background-color: lightblue;
 }
 
