@@ -101,7 +101,51 @@ var Env3D = function() {
 	castRay(pos.x, pos.y);
 	return raycaster.intersectObjects(objects.children)[0];
     };
-	
+
+    // Get the ids of the objects that cross the plane
+    var getCollidingObjectIds = function(plane) {
+	var domain = objects.clone();
+	// Remove planes from the domain
+	// Loop backwards to avoid dynamic index problems
+	for (var i = domain.children.length-1; i >= 0; i--) {
+	    var obj = domain.children[i];
+	    if (obj.userData.isPlane) {
+		domain.remove(obj);
+	    }
+	}
+
+	var w = plane.geometry.parameters.width;
+	var h = plane.geometry.parameters.height;
+	//TODO: make this dependent on plane angle
+	var direction = new THREE.Vector3(0, 0, -1);
+	var collisions = [];
+
+	// Create raycasters that are 1/10 units apart, spanning across the
+	// length of the plane.
+	for (var x = -w/2; x < w/2; x+=1/10) {
+	    // Don't keep searching if there are no objects left
+	    if (domain.children.length == 0)  {
+		break;
+	    }
+	    
+	    var origin = new THREE.Vector3(x, 0, h/2);
+	    origin = origin.add(plane.position);
+	    direction = new THREE.Vector3(0, 0, -1).normalize();
+	    var r = new THREE.Raycaster(origin, direction, 0, h);
+
+	    // Visualize rays for debugging
+	    //scene.add( new THREE.ArrowHelper(direction, origin, h, 0xffffff));
+	    
+	    // Get the objects that intersect with the raycaster
+	    var intersects = r.intersectObjects(domain.children);
+	    for (var i in intersects) {
+		var obj = intersects[i].object;
+		collisions.push(obj.name);
+		domain.remove(obj);
+	    }
+	}
+	return collisions;	
+    };
 
     // Updates hoverObject, which is the object the cursor is hovering over.
     // The first intersecting object is taken if there are multiple.
@@ -241,6 +285,7 @@ var Env3D = function() {
 	        obj.material.transparent = true; // this has to be true for the opacity to work
 	        obj.material.opacity = 0.5;
 	        obj.rotation.x = 3.14/2; // make the plane normal face upwards TODO: make this dependent on camera angle
+	        obj.userData.isPlane = true;
 	        break;
 	    case 1: // cone
 	        obj.geometry = new THREE.CylinderGeometry(0, 1/2, 1, 50, 0);
@@ -252,6 +297,10 @@ var Env3D = function() {
 	obj.position.x = coords.x;
 	obj.position.y = coords.y;
 	obj.position.z = coords.z;
+	obj.updateMatrixWorld();
+	// the object id is changed when a clone is made, so set the name to the
+	// original id so it can be looked up when only clones are provided
+	obj.name = obj.id;
 	objects.add(obj);
 	return obj;
     };
@@ -282,7 +331,8 @@ var Env3D = function() {
 	}
     };   
 
-    var splitObject = function(object, plane) {
+    var splitObject = function(objectId, plane) {
+	var object = objects.getObjectById(objectId);
 	// Remove the original object from the scene
 	objects.remove(object);
 	// Extend the plane downwards and reposition it so the top face is at the 
@@ -295,7 +345,7 @@ var Env3D = function() {
 	var objBSP = new ThreeBSP(object);
 	// subtract the extended plane from the object to create the top half.
 	var subtracted = objBSP.subtract(planeBSP);
-	var mesh1 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x00ff00}));
+	var mesh1 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x009900}));
 	objects.add(mesh1);
 	// Reposition the extended plane so the bototm face is at the original
 	// plane position
@@ -303,7 +353,7 @@ var Env3D = function() {
 	planeBSP = new ThreeBSP(plane);
 	// subtract again to create the bottom half
 	subtracted = objBSP.subtract(planeBSP);
-	var mesh2 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x00ff00}));
+	var mesh2 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x009900}));
 	objects.add(mesh2);
     };
 
@@ -327,8 +377,8 @@ var Env3D = function() {
 	setObjectColor: function(object, color) { object.material.color.set(color); },
 	insertObject: insertObject,
 	getObjectByIntersection: getObjectByIntersection, // name changed
-	splitObject: function(object, plane) {},
-	getCollidingObjects: function(object) {},
+	splitObject: splitObject,
+	getCollidingObjectIds: getCollidingObjectIds, // name changed
 	transformObject: function(object, deltaOri, deltaPos) {}
     };
 };
