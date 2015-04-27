@@ -99,19 +99,23 @@ var updateBinHighlights = function(intersecting) {
 };
 
 // rotation
-var ROTATE_THRESHOLD = 0.0;
-var getRotation = function(hand, startFrame, lastFrame) {
-    var xRot, yRot, zRot, total;
-    xRot = hand.rotationAngle(lastFrame, [1, 0, 0]);
-    yRot = hand.rotationAngle(lastFrame, [0, 1, 0]);
-    zRot = hand.rotationAngle(lastFrame, [0, 0, 1]);
-    total = hand.rotationAngle(startFrame);
-    if (Math.abs(total) < ROTATE_THRESHOLD) {
-        xRot = 0;
-        yRot = 0;
-        zRot = 0;
-    }
-    return new THREE.Vector3(xRot, yRot, zRot);
+// var ROTATE_THRESHOLD = 0.0;
+// var getRotation = function(hand, startFrame, lastFrame) {
+//     var xRot, yRot, zRot, total;
+//     xRot = hand.rotationAngle(lastFrame, [1, 0, 0]);
+//     yRot = hand.rotationAngle(lastFrame, [0, 1, 0]);
+//     zRot = hand.rotationAngle(lastFrame, [0, 0, 1]);
+//     total = hand.rotationAngle(startFrame);
+//     if (Math.abs(total) < ROTATE_THRESHOLD) {
+//         xRot = 0;
+//         yRot = 0;
+//         zRot = 0;
+//     }
+//     return new THREE.Vector3(xRot, yRot, zRot);
+// };
+var getAngle = function(hand) {
+    return new THREE.Vector3(hand.pitch(), hand.yaw(), hand.roll());
+    // return { x: hand.pitch(), y: hand.yaw(), z: hand.roll() };
 };
 
 // setup after document loads
@@ -150,6 +154,7 @@ var LeapInterface = function(env) {
             grabStartFrame: null,
             grabStartPos: { x: 0, y: 0, z: 0 },
             lastPos: { x: 0, y: 0, z: 0 },
+            lastAngle: new THREE.Vector3(0, 0, 0),
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
@@ -160,6 +165,7 @@ var LeapInterface = function(env) {
             grabStartFrame: null,
             grabStartPos: { x: 0, y: 0, z: 0 },
             lastPos: { x: 0, y: 0, z: 0 },
+            lastAngle: new THREE.Vector3(0, 0, 0),
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
@@ -218,6 +224,7 @@ var LeapInterface = function(env) {
                 thisHand.grabStartFrame = frame;
                 thisHand.grabStartPos = handPos;
                 thisHand.lastPos = handPos;
+                thisHand.lastAngle = getAngle(hand);
 
                 // if an object is being highlighted, clear it so
                 // that we can pick it up without weird state problems
@@ -239,8 +246,16 @@ var LeapInterface = function(env) {
                 // grab active
                 if (thisHand.currentSelection) {
                     // rotation since one frame ago
-                    var rotation = getRotation(hand, thisHand.grabStartFrame, this.frame(1));
-                    c.setRotation(rotation.x, rotation.y, rotation.z);
+                    // var rotation = getAngle(hand, thisHand.grabStartFrame, this.frame(1));
+                    // c.setRotation(rotation.x, rotation.y, rotation.z);
+
+                    var currentAngle = getAngle(hand);
+                    var rotation = currentAngle.sub(thisHand.lastAngle);
+                    thisHand.lastAngle = currentAngle;
+
+                    if (thisHand.currentSelection.userData.isPlane) {
+                        rotation = new THREE.Vector3(0, 0, 0);
+                    }
 
                     // translation since one frame ago
                     var lastXformPos = handPosToTransformPos(thisHand.lastPos);
@@ -269,6 +284,7 @@ var LeapInterface = function(env) {
                     thisHand.currentSelection = null;
                 }
 
+                // TODO: don't highlight an object being held by the other hand
                 var newHighlight = helpers.highlightObjectByPos(handPos);
                 if (newHighlight != thisHand.currentHighlight) {
                     helpers.clearHighlight(thisHand.currentHighlight);
