@@ -4,17 +4,19 @@ scenario. It would be useful to actually implement the functions that are called
 but they're not yet.
 */
 
-var insertObject, grabObject, transformObject, dropObject;
+var insertObject, grabObject, transformObject, dropObject, highlightObject, unhighlightObject;
+var OBJECT_TYPES;
 
 $(document).ready(function() {
 
     // Color constants
     var SELECTED_COLOR = 0xff0000;
+    var HIGHLIGHT_COLOR = 0x0000ff;
     var DEFAULT_COLOR = 0x009900;
     var PLANE_COLOR = 0xffffff;
 
     // Object type enumerables
-    var OBJECT_TYPES = {
+    OBJECT_TYPES = {
 	PLANE: 0,
 	CONE: 1
     };
@@ -145,6 +147,21 @@ $(document).ready(function() {
 	    env.setObjectColor(obj, DEFAULT_COLOR);
 	}
 	return null; // Expliciyly return null, just in case.
+    };
+
+    highlightObject = function(pos) {
+    var selectedObj = env.getObjectByIntersection(pos);
+    if (selectedObj) {
+        env.setObjectColor(selectedObj, HIGHLIGHT_COLOR);
+    }
+    return selectedObj;
+    };
+
+    unhighlightObject = function(obj) {
+    if (obj) {
+        env.setObjectColor(obj, obj.userData.isPlane ? PLANE_COLOR : DEFAULT_COLOR);
+    }
+    return null;
     };
 
 });

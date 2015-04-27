@@ -12,18 +12,7 @@ var Cursor = function(isRightHand) {
         });
     };
     this.setRotation = function(x, y, z) {
-        if (x == y == z === 0) {
-            this.clearRotation();
-            return;
-        }
-        el.css({
-            transform: 'scale('+scale+') rotateX('+x+'rad) rotateY('+y+'rad) rotateZ('+z+'rad)'
-        }).addClass('rotating');
-    };
-    this.clearRotation = function() {
-        el.css({
-            transform: 'scale('+scale+')'
-        }).removeClass('rotating');
+        el.toggleClass('rotating', !(x === 0 && y === 0 && z === 0));
     };
 
     this.hide = function() { el.hide(); };
@@ -107,32 +96,48 @@ var updateBinHighlights = function(intersecting) {
     }
 };
 
-// setup after document loads
+// rotation
 var ROTATE_THRESHOLD = 0.5;
 var getRotation = function(hand, startFrame) {
     var xRot, yRot, zRot, total;
-    xRot = hand.rotationAngle(start, [1, 0, 0]);
-    yRot = hand.rotationAngle(start, [0, 1, 0]);
-    zRot = hand.rotationAngle(start, [0, 0, 1]);
-    total = hand.rotationAngle(start);
+    xRot = hand.rotationAngle(startFrame, [1, 0, 0]);
+    yRot = hand.rotationAngle(startFrame, [0, 1, 0]);
+    zRot = hand.rotationAngle(startFrame, [0, 0, 1]);
+    total = hand.rotationAngle(startFrame);
     if (Math.abs(total) < ROTATE_THRESHOLD) {
         xRot = 0;
         yRot = 0;
         zRot = 0;
     }
-    return { x: xRot, y: yRot, z: zRot };
+    return new THREE.Vector3(xRot, yRot, zRot);
 };
 
-var LeapInterface = function(env, helpers) {
+// setup after document loads
+var LeapInterface = function(env) {
+    // functions from callback_helpers.js
+    // put in an object and sometimes renamed to help with
+    // consistency
+    var helpers = {
+        insertObject: insertObject,
+        selectObjectByPos: grabObject,
+        transformObject: transformObject,
+        deselectObject: dropObject,
+        highlightObjectByPos: highlightObject,
+        clearHighlight: unhighlightObject,
+    };
+
     // env-dependent helpers
-    var handPosToTransformPos = function(x, y, z) {
-        var newZ = leapZToSceneZ(z);
-        var newX = env.convertToSceneUnits(0, window.innerWidth, x, 'x', z);
-        var newY = env.convertToSceneUnits(0, window.innerHeight, y, 'y', z);
+    var handPosToTransformPos = function(oldPos) {
+        console.log('oldPos', oldPos);
+        var newZ = leapZToSceneZ(oldPos.z);
+        var newX = env.convertToSceneUnits(0, window.innerWidth, oldPos.x, 'x', 0 /*newZ*/);
+        var newY = env.convertToSceneUnits(0, window.innerHeight, oldPos.y, 'y', 0 /*newZ*/);
+        console.log('newPos', {x:newX, y:newY, z:newZ});
+        return new THREE.Vector3(newX, newY, newZ);
     };
 
     // TESTING ONLY
-    env.addCubes();
+    // env.addCubes();
     
     // TODO: add a 'seenThisFrame' attribute and if not seen, hide cursor and clear
     // highlights/selections/etc
@@ -141,6 +146,7 @@ var LeapInterface = function(env, helpers) {
             cursor: new Cursor(false),
             grabStartProcessed: false,
             grabStartFrame: null,
+            grabStartPos: { x: 0, y: 0, z: 0 },
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
@@ -149,6 +155,7 @@ var LeapInterface = function(env, helpers) {
             cursor: new Cursor(true),
             grabStartProcessed: false,
             grabStartFrame: null,
+            grabStartPos: { x: 0, y: 0, z: 0 },
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
@@ -205,36 +212,37 @@ var LeapInterface = function(env, helpers) {
                 // grab started
                 thisHand.grabStartProcessed = true;
                 thisHand.grabStartFrame = frame;
+                thisHand.grabStartPos = handPos;
+
+                if (thisHand.currentHighlight !== null) {
+                    helpers.clearHighlight(thisHand.currentHighlight);
+                    thisHand.currentHighlight = null;
+                }
+
                 if (intersectingBin) {
                     intersectingBin.trigger('click', [handType, handPos]);
                 } else {
                     var selection = helpers.selectObjectByPos(handPos);
-                    if (thisHand.otherHand.currentSelection != selection) {
-                        thisHand.currentSeletion = selection;
+                    if (selection != thisHand.otherHand.currentSelection) {
+                        thisHand.currentSelection = selection;
                     }
-                    // env.selectObjectByIntersection(handPos.x, handPos.y);
                 }
             }
             if (grabState == 'grabbing') {
                 // grab active
-                // *******************************************
-                // var xRot, yRot, zRot, total;
-                var start = thisHand.grabStartFrame;
-                var rotation = getRotation(hand, start);
-                c.setRotation(rotation.x, rotation.y, rotation.z);
-                var translation = handPosToTransformPos(hand.translation(start));
-                // TODO: split and transform here!!
-
-                // xRot = hand.rotationAngle(start, [1, 0, 0]);
-                // yRot = hand.rotationAngle(start, [0, 1, 0]);
-                // zRot = hand.rotationAngle(start, [0, 0, 1]);
-                // total = hand.rotationAngle(start);
-                // if (Math.abs(total) > ROTATE_THRESHOLD) {
-                //     c.setRotation(xRot, yRot, zRot);
-                // } else {
-                //     c.clearRotation();
-                // }
-                // console.log('axis:', hand.rotationAxis(grabStartFrame[handType]));
+                if (thisHand.currentSelection) {
+                    var start = thisHand.grabStartFrame;
+                    var rotation = getRotation(hand, this.frame(1));
+                    c.setRotation(rotation.x, rotation.y, rotation.z);
+                    var translation = handPosToTransformPos(hand.translation(this.frame(1)));
+                    // TODO: split and transform here!!
+                    // obj, deltaori, deltapos, initpos
+                    helpers.transformObject(
+                        thisHand.currentSelection,
+                        rotation,
+                        translation,
+                        thisHand.grabStartPos);
+                }
             }
             if (grabState == 'grabEnd' && !thisHand.grabEndProcessed) {
                 // grab ended
@@ -245,9 +253,10 @@ var LeapInterface = function(env, helpers) {
             }
             if (grabState == 'notGrabbing') {
                 thisHand.grabStartFrame = null;
-                c.clearRotation();
-                helpers.deselectObject(thisHand.currentSelection);
-                thisHand.currentSelection = null;
+                if (thisHand.currentSelection) {
+                    helpers.deselectObject(thisHand.currentSelection);
+                    thisHand.currentSelection = null;
+                }
 
                 var newHighlight = helpers.highlightObjectByPos(handPos);
                 if (newHighlight != thisHand.currentHighlight) {
