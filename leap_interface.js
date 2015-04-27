@@ -147,9 +147,13 @@ var LeapInterface = function(env) {
     
     // TODO: add a 'seenThisFrame' attribute and if not seen, hide cursor and clear
     // highlights/selections/etc
+    var EWMA_FRAC = 0.2;
+    var EWMA_ROT_FRAC = 0.2;
     var handState = {
         left: {
             cursor: new Cursor(false),
+            residualPos: { x: 0, y: 0, z: 0 },
+            residualRotation: new THREE.Vector3(0, 0, 0),
             grabStartProcessed: false,
             grabStartFrame: null,
             grabStartPos: { x: 0, y: 0, z: 0 },
@@ -161,6 +165,8 @@ var LeapInterface = function(env) {
         },
         right: {
             cursor: new Cursor(true),
+            residualPos: { x: 0, y: 0, z: 0 },
+            residualRotation: new THREE.Vector3(0, 0, 0),
             grabStartProcessed: false,
             grabStartFrame: null,
             grabStartPos: { x: 0, y: 0, z: 0 },
@@ -201,10 +207,15 @@ var LeapInterface = function(env) {
         for(var h in frame.hands) {
             if (h > 1) { break; }
             var hand = frame.hands[h];
-            var handPosRaw = hand.screenPosition().map(Math.round);
-            var handPos = { x: handPosRaw[0], y: handPosRaw[1], z: handPosRaw[2] };
             var handType = hand.type;
             var thisHand = handState[handType];
+            var handPosRaw = hand.screenPosition().map(Math.round);
+            var handPos = {
+                x: handPosRaw[0] * (1-EWMA_FRAC) + thisHand.residualPos.x * EWMA_FRAC,
+                y: handPosRaw[1] * (1-EWMA_FRAC) + thisHand.residualPos.y * EWMA_FRAC,
+                z: handPosRaw[2] * (1-EWMA_FRAC) + thisHand.residualPos.z * EWMA_FRAC
+            };
+            thisHand.residualPos = handPos;
 
             var prvGrabStr = previousGrabStrength(this, hand, 10);
             var grabState = getGrabState(hand.grabStrength, prvGrabStr);
@@ -225,6 +236,7 @@ var LeapInterface = function(env) {
                 thisHand.grabStartPos = handPos;
                 thisHand.lastPos = handPos;
                 thisHand.lastAngle = getAngle(hand);
+                thisHand.residualRotation = new THREE.Vector3(0, 0, 0);
 
                 // if an object is being highlighted, clear it so
                 // that we can pick it up without weird state problems
@@ -252,7 +264,11 @@ var LeapInterface = function(env) {
                     var currentAngle = getAngle(hand);
                     var rotation = currentAngle.sub(thisHand.lastAngle);
                     thisHand.lastAngle = currentAngle;
+                    rotation.multiplyScalar(1-EWMA_ROT_FRAC);
+                    rotation.add(thisHand.residualRotation.multiplyScalar(EWMA_ROT_FRAC));
+                    thisHand.residualRotation = rotation.clone();
 
+                    // planes do not rotate
                     if (thisHand.currentSelection.userData.isPlane) {
                         rotation = new THREE.Vector3(0, 0, 0);
                     }
@@ -265,7 +281,7 @@ var LeapInterface = function(env) {
                     // obj, deltaori, deltapos, initpos
                     helpers.transformObject(
                         thisHand.currentSelection,
-                        /*new THREE.Vector3(0,0,0),*/rotation,
+                        rotation,
                         translation,
                         thisHand.grabStartPos);
                 }
