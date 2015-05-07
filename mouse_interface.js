@@ -1,6 +1,6 @@
 // Adds functionality for the mouse
 var MouseInterface = function(env) {
-    var STATES = { NONE: -1, PLACE_PLANE: 0, PLACE_CONE: 1, PREP_ROTATE_OBJ: 2, ROTATE_OBJ: 3 };
+    var STATES = { NONE: -1, PLACE_PLANE: 0, PLACE_CONE: 1, PREP_ROTATE_OBJ: 2, ROTATE_OBJ: 3, CAM_CONTROL: 4 };
     var state = STATES.NONE;
 
     // Used to keep track of cursor position when needed
@@ -44,6 +44,13 @@ var MouseInterface = function(env) {
 	    storedScenePos.y = env.convertToSceneUnits(0, window.innerHeight, e.clientY, "y");
 	    storedScenePos.z = 0;
 	    state = STATES.ROTATE_OBJ;
+	case STATES.CAM_CONTROL:
+	    selectedObject = grabObject(pos);
+	    if (selectedObject) {
+		state = STATES.NONE
+		env.setMode(-1);
+		initPos = pos.clone();
+	    }
 	default:
 	    break;
 	}
@@ -102,9 +109,9 @@ var MouseInterface = function(env) {
     // Stores the labels and onClick events for each GUI button
     var buttons = {
 	Modes: [
-	    {label: "Camera Rotate", onClick: function() { env.setMode(0); }},
-	    {label: "Camera Zoom", onClick: function() { env.setMode(1); }},
-	    {label: "Camera Pan", onClick: function() { env.setMode(2); }},
+	    {label: "Camera Rotate", onClick: function() { env.setMode(0); state = STATES.CAM_CONTROL; }},
+	    {label: "Camera Zoom", onClick: function() { env.setMode(1); state = STATES.CAM_CONTROL; }},
+	    {label: "Camera Pan", onClick: function() { env.setMode(2); state = STATES.CAM_CONTROL; }},
 	    {label: "Rotate Object", onClick: function() { state = STATES.PREP_ROTATE_OBJ; }}
 	],
 

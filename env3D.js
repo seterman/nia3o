@@ -22,7 +22,7 @@ var Env3D = function() {
     controls.zoomSpeed = 1.2;
     controls.panSpeed = 0.8;
 
-    controls.enabled = false; //TODO: integrate camera controls later
+    controls.enabled = false; 
 
     // Render loop
     var render = function () {
@@ -426,8 +426,12 @@ var Env3D = function() {
 	addCube: addCube,
 	setMode: function(state) {
 	    // camera control states
-	    // 0: rotate, 1: zoom, 2: pan
-	    if (state >= 0 & state <= 2) { 
+	    // -1: disabled, 0: rotate, 1: zoom, 2: pan
+	    if (state == -1) {
+		controls.enabled = false;
+	    }
+	    else if (state >= 0 & state <= 2) { 
+		controls.enabled = true;
 		controls.changeState(state);
 	    }
 	}, 
