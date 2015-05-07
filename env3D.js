@@ -325,7 +325,7 @@ var Env3D = function() {
     };
 
     var insertObject = function(type, pos) {
-	var obj = new THREE.Mesh({}, new THREE.MeshBasicMaterial({color: 0x009900}));
+	var obj = new THREE.Mesh({}, new THREE.MeshLambertMaterial({color: 0x009900}));
 	switch(type) {
 	    case 0: // plane
 	        obj.geometry = new THREE.BoxGeometry(5, 5, 1/500);
@@ -393,7 +393,7 @@ var Env3D = function() {
 	var objBSP = new ThreeBSP(object);
 	// subtract the extended plane from the object to create the top half.
 	var subtracted = objBSP.subtract(planeBSP);
-	var mesh1 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x009900}));
+	var mesh1 = subtracted.toMesh(new THREE.MeshLambertMaterial({color: 0x009900}));
 	mesh1.material.side = THREE.DoubleSide;
 	mesh1.geometry.computeVertexNormals();
 	mesh1.name = objectName+"-0";
@@ -404,7 +404,7 @@ var Env3D = function() {
 	planeBSP = new ThreeBSP(plane);
 	// subtract again to create the bottom half
 	subtracted = objBSP.subtract(planeBSP);
-	var mesh2 = subtracted.toMesh(new THREE.MeshBasicMaterial({color: 0x009900}));
+	var mesh2 = subtracted.toMesh(new THREE.MeshLambertMaterial({color: 0x009900}));
 	mesh2.material.side = THREE.DoubleSide;
 	mesh2.geometry.computeVertexNormals();
 	mesh2.name = objectName+"-1";

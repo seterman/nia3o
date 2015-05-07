@@ -11,9 +11,11 @@ var Cursor = function(isRightHand) {
             transform: 'scale(' + scale + ')'
         });
     };
-    this.setRotation = function(x, y, z) {
-        el.toggleClass('rotating', !(x === 0 && y === 0 && z === 0));
-    };
+    // this.setRotation = function(x, y, z) {
+    //     el.css({
+    //         transform: 'scale('+scale+') rotateX('+x+'rad) rotateY('+y+'rad) rotateZ('+z+'rad)'
+    //     })//.toggleClass('rotating', !(x === 0 && y === 0 && z === 0));
+    // };
 
     this.hide = function() { el.hide(); };
     this.show = function() { el.show(); };
@@ -97,19 +99,23 @@ var updateBinHighlights = function(intersecting) {
 };
 
 // rotation
-var ROTATE_THRESHOLD = 0.5;
-var getRotation = function(hand, startFrame) {
-    var xRot, yRot, zRot, total;
-    xRot = hand.rotationAngle(startFrame, [1, 0, 0]);
-    yRot = hand.rotationAngle(startFrame, [0, 1, 0]);
-    zRot = hand.rotationAngle(startFrame, [0, 0, 1]);
-    total = hand.rotationAngle(startFrame);
-    if (Math.abs(total) < ROTATE_THRESHOLD) {
-        xRot = 0;
-        yRot = 0;
-        zRot = 0;
-    }
-    return new THREE.Vector3(xRot, yRot, zRot);
+// var ROTATE_THRESHOLD = 0.0;
+// var getRotation = function(hand, startFrame, lastFrame) {
+//     var xRot, yRot, zRot, total;
+//     xRot = hand.rotationAngle(lastFrame, [1, 0, 0]);
+//     yRot = hand.rotationAngle(lastFrame, [0, 1, 0]);
+//     zRot = hand.rotationAngle(lastFrame, [0, 0, 1]);
+//     total = hand.rotationAngle(startFrame);
+//     if (Math.abs(total) < ROTATE_THRESHOLD) {
+//         xRot = 0;
+//         yRot = 0;
+//         zRot = 0;
+//     }
+//     return new THREE.Vector3(xRot, yRot, zRot);
+// };
+var getAngle = function(hand) {
+    return new THREE.Vector3(hand.pitch(), hand.yaw(), hand.roll());
+    // return { x: hand.pitch(), y: hand.yaw(), z: hand.roll() };
 };
 
 // setup after document loads
@@ -128,11 +134,11 @@ var LeapInterface = function(env) {
 
     // env-dependent helpers
     var handPosToTransformPos = function(oldPos) {
-        console.log('oldPos', oldPos);
+        // console.log('oldPos', oldPos);
         var newZ = leapZToSceneZ(oldPos.z);
-        var newX = env.convertToSceneUnits(0, window.innerWidth, oldPos.x, 'x', 0 /*newZ*/);
-        var newY = env.convertToSceneUnits(0, window.innerHeight, oldPos.y, 'y', 0 /*newZ*/);
-        console.log('newPos', {x:newX, y:newY, z:newZ});
+        var newX = env.convertToSceneUnits(0, window.innerWidth, oldPos.x, 'x', newZ);
+        var newY = env.convertToSceneUnits(0, window.innerHeight, oldPos.y, 'y', newZ);
+        // console.log('newPos', {x:newX, y:newY, z:newZ});
         return new THREE.Vector3(newX, newY, newZ);
     };
 
@@ -141,21 +147,31 @@ var LeapInterface = function(env) {
     
     // TODO: add a 'seenThisFrame' attribute and if not seen, hide cursor and clear
     // highlights/selections/etc
+    var EWMA_FRAC = 0.2;
+    var EWMA_ROT_FRAC = 0.2;
     var handState = {
         left: {
             cursor: new Cursor(false),
+            residualPos: { x: 0, y: 0, z: 0 },
+            residualRotation: new THREE.Vector3(0, 0, 0),
             grabStartProcessed: false,
             grabStartFrame: null,
             grabStartPos: { x: 0, y: 0, z: 0 },
+            lastPos: { x: 0, y: 0, z: 0 },
+            lastAngle: new THREE.Vector3(0, 0, 0),
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
         },
         right: {
             cursor: new Cursor(true),
+            residualPos: { x: 0, y: 0, z: 0 },
+            residualRotation: new THREE.Vector3(0, 0, 0),
             grabStartProcessed: false,
             grabStartFrame: null,
             grabStartPos: { x: 0, y: 0, z: 0 },
+            lastPos: { x: 0, y: 0, z: 0 },
+            lastAngle: new THREE.Vector3(0, 0, 0),
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
@@ -191,10 +207,15 @@ var LeapInterface = function(env) {
         for(var h in frame.hands) {
             if (h > 1) { break; }
             var hand = frame.hands[h];
-            var handPosRaw = hand.screenPosition().map(Math.round);
-            var handPos = { x: handPosRaw[0], y: handPosRaw[1], z: handPosRaw[2] };
             var handType = hand.type;
             var thisHand = handState[handType];
+            var handPosRaw = hand.screenPosition().map(Math.round);
+            var handPos = {
+                x: handPosRaw[0] * (1-EWMA_FRAC) + thisHand.residualPos.x * EWMA_FRAC,
+                y: handPosRaw[1] * (1-EWMA_FRAC) + thisHand.residualPos.y * EWMA_FRAC,
+                z: handPosRaw[2] * (1-EWMA_FRAC) + thisHand.residualPos.z * EWMA_FRAC
+            };
+            thisHand.residualPos = handPos;
 
             var prvGrabStr = previousGrabStrength(this, hand, 10);
             var grabState = getGrabState(hand.grabStrength, prvGrabStr);
@@ -213,7 +234,12 @@ var LeapInterface = function(env) {
                 thisHand.grabStartProcessed = true;
                 thisHand.grabStartFrame = frame;
                 thisHand.grabStartPos = handPos;
+                thisHand.lastPos = handPos;
+                thisHand.lastAngle = getAngle(hand);
+                thisHand.residualRotation = new THREE.Vector3(0, 0, 0);
 
+                // if an object is being highlighted, clear it so
+                // that we can pick it up without weird state problems
                 if (thisHand.currentHighlight !== null) {
                     helpers.clearHighlight(thisHand.currentHighlight);
                     thisHand.currentHighlight = null;
@@ -231,11 +257,27 @@ var LeapInterface = function(env) {
             if (grabState == 'grabbing') {
                 // grab active
                 if (thisHand.currentSelection) {
-                    var start = thisHand.grabStartFrame;
-                    var rotation = getRotation(hand, this.frame(1));
-                    c.setRotation(rotation.x, rotation.y, rotation.z);
-                    var translation = handPosToTransformPos(hand.translation(this.frame(1)));
-                    // TODO: split and transform here!!
+                    // rotation since one frame ago
+                    // var rotation = getAngle(hand, thisHand.grabStartFrame, this.frame(1));
+                    // c.setRotation(rotation.x, rotation.y, rotation.z);
+
+                    var currentAngle = getAngle(hand);
+                    var rotation = currentAngle.sub(thisHand.lastAngle);
+                    thisHand.lastAngle = currentAngle;
+                    rotation.multiplyScalar(1-EWMA_ROT_FRAC);
+                    rotation.add(thisHand.residualRotation.multiplyScalar(EWMA_ROT_FRAC));
+                    thisHand.residualRotation = rotation.clone();
+
+                    // planes do not rotate
+                    if (thisHand.currentSelection.userData.isPlane) {
+                        rotation = new THREE.Vector3(0, 0, 0);
+                    }
+
+                    // translation since one frame ago
+                    var lastXformPos = handPosToTransformPos(thisHand.lastPos);
+                    var currentXformPos = handPosToTransformPos(handPos);
+                    var translation = currentXformPos.sub(lastXformPos);
+                    thisHand.lastPos = handPos;
                     // obj, deltaori, deltapos, initpos
                     helpers.transformObject(
                         thisHand.currentSelection,
@@ -258,6 +300,7 @@ var LeapInterface = function(env) {
                     thisHand.currentSelection = null;
                 }
 
+                // TODO: don't highlight an object being held by the other hand
                 var newHighlight = helpers.highlightObjectByPos(handPos);
                 if (newHighlight != thisHand.currentHighlight) {
                     helpers.clearHighlight(thisHand.currentHighlight);
