@@ -73,6 +73,13 @@ var coneBin = $('<div class="bin">Cone Bin</div>');
 var planeBin = $('<div class="bin">Plane Bin</div>');
 binContainer.append(coneBin, planeBin);
 
+var cameraHandleRight = $('<div class="camera-handle camera-handle-right">');
+var cameraHandleLeft = $('<div class="camera-handle camera-handle-left">');
+
+// indicate which (if any) of the controls are underneath the given
+// position. Return false if no element intersects POS, or the element
+// if one does intersect
+// TODO: does the handEntry plugin do this automatically?
 var findIntersecting = function(pos, elements) {
     for (var i = 0; i < elements.length; i++) {
         var element = elements.eq(i);
@@ -90,13 +97,15 @@ var findIntersecting = function(pos, elements) {
     return false;
 };
 
-// indicate which (if any) of the controls are underneath the given
-// position. Return false if no bin intersects POS, or the bin
-// it intersects with
-// TODO: does the handEntry plugin do this automatically?
+// find intersecting shape bins
 var findIntersectingBin = function(pos) {
     var bins = $('.bin');
     return findIntersecting(pos, bins);
+};
+
+var findIntersectingCameraHandle = function(pos) {
+    var handles = $('.camera-handle');
+    return findIntersecting(pos, handles);
 };
 
 // Set or clear the highlights on anything intersecting the cursor
@@ -109,11 +118,14 @@ var updateIntersectionHighlights = function(intersecting, type) {
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-// Leap controller
+// Post-load setup
 ///////////////////////////////////////////////////////////////////////////////
 
-// setup after document loads
 var LeapInterface = function(env) {
+    ///////////////////////////////////////////////////////////////////////////
+    // Helpers
+    ///////////////////////////////////////////////////////////////////////////
+
     // functions from callback_helpers.js, put in an object and sometimes
     // renamed to help with consistency
     var helpers = {
@@ -133,8 +145,9 @@ var LeapInterface = function(env) {
         return new THREE.Vector3(newX, newY, newZ);
     };
 
-    // TESTING ONLY
-    // env.addCubes();
+    ///////////////////////////////////////////////////////////////////////////
+    // Hand state
+    ///////////////////////////////////////////////////////////////////////////
     
     // TODO: add a 'seenThisFrame' attribute and if not seen, hide cursor and clear
     // highlights/selections/etc
@@ -171,11 +184,84 @@ var LeapInterface = function(env) {
     handState.left.otherHand = handState.right;
     handState.right.otherHand = handState.left;
 
-    // GUI
-    // addCubeBtn.click(function(evt, handPos) {
-    //     var cube = env.addCube(handPos.x, handPos.y, leapZToSceneZ(handPos.z));
-    //     env.selectObject(cube);
-    // });
+
+    var handleGrabStart = function(s) {
+        s.handState.grabStartProcessed = true;
+        s.handState.grabStartFrame = s.frame;
+        s.handState.grabStartPos = s.handPos;
+        s.handState.lastPos = s.handPos;
+        s.handState.lastAngle = getAngle(s.leapHand);
+        s.handState.residualRotation = new THREE.Vector3(0, 0, 0);
+
+        // if an object is being highlighted, clear it so
+        // that we can pick it up without weird state problems
+        if (s.handState.currentHighlight !== null) {
+            helpers.clearHighlight(s.handState.currentHighlight);
+            s.handState.currentHighlight = null;
+        }
+
+        if (s.intersectingBin) {
+            s.intersectingBin.trigger('click', [s.handType, s.handPos]);
+        } else {
+            var selection = helpers.selectObjectByPos(s.handPos);
+            if (selection != s.handState.otherHand.currentSelection) {
+                s.handState.currentSelection = selection;
+            }
+        }
+    };
+
+    // TODO!!!!!! figure out why moving is weird after an object is placed
+    var handleGrabActive = function(s) {
+        // transform the selected object
+        if (s.handState.currentSelection) {
+            // rotation since one frame ago
+            // takes an exponentially weighted moving average
+            // this needs tweaking, probably
+            var currentAngle = getAngle(s.leapHand);
+            var rotation = currentAngle.sub(s.handState.lastAngle);
+            s.handState.lastAngle = currentAngle;
+            rotation.multiplyScalar(1-EWMA_ROT_FRAC);
+            rotation.add(s.handState.residualRotation.multiplyScalar(EWMA_ROT_FRAC));
+            s.handState.residualRotation = rotation.clone();
+
+            // planes do not rotate
+            if (s.handState.currentSelection.userData.isPlane) {
+                rotation = new THREE.Vector3(0, 0, 0);
+            }
+
+            // translation since one frame ago
+            var lastXformPos = handPosToTransformPos(s.handState.lastPos);
+            var currentXformPos = handPosToTransformPos(s.handPos);
+            var translation = currentXformPos.sub(lastXformPos);
+            s.handState.lastPos = s.handPos;
+
+            // do the transform
+            helpers.transformObject(
+                s.handState.currentSelection,
+                rotation,
+                translation,
+                s.handState.grabStartPos);
+        }
+    };
+
+    var handleNoGrab = function(s) {
+        s.handState.grabStartFrame = null;
+        if (s.handState.currentSelection) {
+            helpers.deselectObject(s.handState.currentSelection);
+            s.handState.currentSelection = null;
+        }
+
+        // TODO: don't highlight an object being held by the other hand
+        var newHighlight = helpers.highlightObjectByPos(s.handPos);
+        if (newHighlight != s.handState.currentHighlight) {
+            helpers.clearHighlight(s.handState.currentHighlight);
+        }
+        s.handState.currentHighlight = newHighlight;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Setup GUI elements
+    ///////////////////////////////////////////////////////////////////////////
     coneBin.click(function(evt, handType, handPos) {
         var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
         handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.CONE, pos);
@@ -185,8 +271,11 @@ var LeapInterface = function(env) {
         handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.PLANE, pos);
     });
     $('body').prepend(binContainer);
+    $('body').append(cameraHandleLeft, cameraHandleRight);
 
-    // Leap control loop and options
+    ///////////////////////////////////////////////////////////////////////////
+    // Leap controller
+    ///////////////////////////////////////////////////////////////////////////
     var controllerOptions = {};
     var controller = Leap.loop(controllerOptions, function(frame) {
         // var rhScope = this.plugins.riggedHand;
@@ -212,70 +301,30 @@ var LeapInterface = function(env) {
             var grabState = getGrabState(hand.grabStrength, prvGrabStr);
 
             var intersectingBin = findIntersectingBin(handPos);
-            updateIntersectionHighlights(intersectingBin, handType);
+            var intersectingCam = findIntersectingCameraHandle(handPos);
+            updateIntersectionHighlights(
+                intersectingBin || intersectingCam, handType);
 
             // Move the interface cursors
             var c = thisHand.cursor;
             c.setPosition(handPos);
             c.show();
 
+            var scopeInfo = {
+                'handState': thisHand,
+                'leapHand': hand,
+                'handPos': handPos,
+                'handType': handType,
+                'intersectingBin': intersectingBin,
+                'intersectingCam': intersectingCam,
+            };
+
             // Process grab state
             if (grabState == 'grabStart' && !thisHand.grabStartProcessed) {
-                // grab started
-                thisHand.grabStartProcessed = true;
-                thisHand.grabStartFrame = frame;
-                thisHand.grabStartPos = handPos;
-                thisHand.lastPos = handPos;
-                thisHand.lastAngle = getAngle(hand);
-                thisHand.residualRotation = new THREE.Vector3(0, 0, 0);
-
-                // if an object is being highlighted, clear it so
-                // that we can pick it up without weird state problems
-                if (thisHand.currentHighlight !== null) {
-                    helpers.clearHighlight(thisHand.currentHighlight);
-                    thisHand.currentHighlight = null;
-                }
-
-                if (intersectingBin) {
-                    intersectingBin.trigger('click', [handType, handPos]);
-                } else {
-                    var selection = helpers.selectObjectByPos(handPos);
-                    if (selection != thisHand.otherHand.currentSelection) {
-                        thisHand.currentSelection = selection;
-                    }
-                }
+                handleGrabStart(scopeInfo);
             }
             if (grabState == 'grabbing') {
-                // grab active
-                if (thisHand.currentSelection) {
-                    // rotation since one frame ago
-                    // var rotation = getAngle(hand, thisHand.grabStartFrame, this.frame(1));
-                    // c.setRotation(rotation.x, rotation.y, rotation.z);
-
-                    var currentAngle = getAngle(hand);
-                    var rotation = currentAngle.sub(thisHand.lastAngle);
-                    thisHand.lastAngle = currentAngle;
-                    rotation.multiplyScalar(1-EWMA_ROT_FRAC);
-                    rotation.add(thisHand.residualRotation.multiplyScalar(EWMA_ROT_FRAC));
-                    thisHand.residualRotation = rotation.clone();
-
-                    // planes do not rotate
-                    if (thisHand.currentSelection.userData.isPlane) {
-                        rotation = new THREE.Vector3(0, 0, 0);
-                    }
-
-                    // translation since one frame ago
-                    var lastXformPos = handPosToTransformPos(thisHand.lastPos);
-                    var currentXformPos = handPosToTransformPos(handPos);
-                    var translation = currentXformPos.sub(lastXformPos);
-                    thisHand.lastPos = handPos;
-                    // obj, deltaori, deltapos, initpos
-                    helpers.transformObject(
-                        thisHand.currentSelection,
-                        rotation,
-                        translation,
-                        thisHand.grabStartPos);
-                }
+                handleGrabActive(scopeInfo);
             }
             if (grabState == 'grabEnd' && !thisHand.grabEndProcessed) {
                 // grab ended
@@ -285,19 +334,7 @@ var LeapInterface = function(env) {
                 thisHand.grabStartFrame = null;
             }
             if (grabState == 'notGrabbing') {
-                thisHand.grabStartFrame = null;
-                if (thisHand.currentSelection) {
-                    helpers.deselectObject(thisHand.currentSelection);
-                    thisHand.currentSelection = null;
-                }
-
-                // TODO: don't highlight an object being held by the other hand
-                var newHighlight = helpers.highlightObjectByPos(handPos);
-                if (newHighlight != thisHand.currentHighlight) {
-                    helpers.clearHighlight(thisHand.currentHighlight);
-                }
-                thisHand.currentHighlight = newHighlight;
-
+                handleNoGrab(scopeInfo);
             }
 
             // reset grab start/end processing
@@ -307,8 +344,6 @@ var LeapInterface = function(env) {
             if (grabState != 'grabEnd') {
                 thisHand.grabEndProcessed = false;
             }
-
-            
         }
     });
 
@@ -317,7 +352,7 @@ var LeapInterface = function(env) {
     // }, env.getRenderingComponents());
     // controller.use('boneHand', riggedHandOptions);
     var screenPositionOptions = {
-        verticalOffset: 250,
+        verticalOffset: 300,
         scale: 0.5
     };
     controller.use('screenPosition', screenPositionOptions);
