@@ -41,7 +41,7 @@
     margin: 5px;
 }
 
-.intersecting-hand {
+.intersecting-hand-left, .intersecting-hand-right {
     background-color: lightblue;
 }
 

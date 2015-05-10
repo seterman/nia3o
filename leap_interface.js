@@ -1,3 +1,4 @@
+// The dot representing the cursor for each hand
 var Cursor = function(isRightHand) {
     var el = $('<div class="cursor">').text(isRightHand ? 'R' : 'L');
     var scale = 1;
@@ -11,11 +12,6 @@ var Cursor = function(isRightHand) {
             transform: 'scale(' + scale + ')'
         });
     };
-    // this.setRotation = function(x, y, z) {
-    //     el.css({
-    //         transform: 'scale('+scale+') rotateX('+x+'rad) rotateY('+y+'rad) rotateZ('+z+'rad)'
-    //     })//.toggleClass('rotating', !(x === 0 && y === 0 && z === 0));
-    // };
 
     this.hide = function() { el.hide(); };
     this.show = function() { el.show(); };
@@ -61,7 +57,15 @@ var getGrabState = function(currentGrabStr, prevGrabStr) {
     return isGrabbing ? 'grabbing' : 'notGrabbing';
 };
 
+// Rotation angle
+var getAngle = function(hand) {
+    return new THREE.Vector3(hand.pitch(), hand.yaw(), hand.roll());
+};
+
+///////////////////////////////////////////////////////////////////////////////
 // GUI
+///////////////////////////////////////////////////////////////////////////////
+
 var binContainer = $('<div class="bin-container">');
 // var addCubeBtn = $('<div class="bin">Cube Bin</div>');
 // binContainer.append(addCubeBtn);
@@ -69,60 +73,49 @@ var coneBin = $('<div class="bin">Cone Bin</div>');
 var planeBin = $('<div class="bin">Plane Bin</div>');
 binContainer.append(coneBin, planeBin);
 
+var findIntersecting = function(pos, elements) {
+    for (var i = 0; i < elements.length; i++) {
+        var element = elements.eq(i);
+        var xmin, xmax, ymin, ymax;
+        xmin = element.offset().left;
+        xmax = xmin + element.width();
+        ymin = element.offset().top;
+        ymax = ymin + element.height();
+
+        if (pos.x >= xmin && pos.x <= xmax &&
+                pos.y >= ymin && pos.y <= ymax) {
+            return element;
+        }
+    }
+    return false;
+};
+
 // indicate which (if any) of the controls are underneath the given
 // position. Return false if no bin intersects POS, or the bin
 // it intersects with
 // TODO: does the handEntry plugin do this automatically?
 var findIntersectingBin = function(pos) {
     var bins = $('.bin');
-    for (var i = 0; i < bins.length; i++) {
-        var bin = bins.eq(i);
-        var xmin, xmax, ymin, ymax;
-        xmin = bin.offset().left;
-        xmax = xmin + bin.width();
-        ymin = bin.offset().top;
-        ymax = ymin + bin.height();
-
-        if (pos.x >= xmin && pos.x <= xmax &&
-                pos.y >= ymin && pos.y <= ymax) {
-            return bin;
-        }
-    }
-    return false;
+    return findIntersecting(pos, bins);
 };
 
-var updateBinHighlights = function(intersecting) {
-    $('.intersecting-hand').removeClass('intersecting-hand');
+// Set or clear the highlights on anything intersecting the cursor
+// separated by hand so that two hands can select different things
+var updateIntersectionHighlights = function(intersecting, type) {
+    $('.intersecting-hand-'+type).removeClass('intersecting-hand-'+type);
     if (intersecting) {
-        intersecting.addClass('intersecting-hand');
+        intersecting.addClass('intersecting-hand-'+type);
     }
 };
 
-// rotation
-// var ROTATE_THRESHOLD = 0.0;
-// var getRotation = function(hand, startFrame, lastFrame) {
-//     var xRot, yRot, zRot, total;
-//     xRot = hand.rotationAngle(lastFrame, [1, 0, 0]);
-//     yRot = hand.rotationAngle(lastFrame, [0, 1, 0]);
-//     zRot = hand.rotationAngle(lastFrame, [0, 0, 1]);
-//     total = hand.rotationAngle(startFrame);
-//     if (Math.abs(total) < ROTATE_THRESHOLD) {
-//         xRot = 0;
-//         yRot = 0;
-//         zRot = 0;
-//     }
-//     return new THREE.Vector3(xRot, yRot, zRot);
-// };
-var getAngle = function(hand) {
-    return new THREE.Vector3(hand.pitch(), hand.yaw(), hand.roll());
-    // return { x: hand.pitch(), y: hand.yaw(), z: hand.roll() };
-};
+///////////////////////////////////////////////////////////////////////////////
+// Leap controller
+///////////////////////////////////////////////////////////////////////////////
 
 // setup after document loads
 var LeapInterface = function(env) {
-    // functions from callback_helpers.js
-    // put in an object and sometimes renamed to help with
-    // consistency
+    // functions from callback_helpers.js, put in an object and sometimes
+    // renamed to help with consistency
     var helpers = {
         insertObject: insertObject,
         selectObjectByPos: grabObject,
@@ -134,11 +127,9 @@ var LeapInterface = function(env) {
 
     // env-dependent helpers
     var handPosToTransformPos = function(oldPos) {
-        // console.log('oldPos', oldPos);
         var newZ = leapZToSceneZ(oldPos.z);
         var newX = env.convertToSceneUnits(0, window.innerWidth, oldPos.x, 'x', newZ);
         var newY = env.convertToSceneUnits(0, window.innerHeight, oldPos.y, 'y', newZ);
-        // console.log('newPos', {x:newX, y:newY, z:newZ});
         return new THREE.Vector3(newX, newY, newZ);
     };
 
@@ -147,7 +138,7 @@ var LeapInterface = function(env) {
     
     // TODO: add a 'seenThisFrame' attribute and if not seen, hide cursor and clear
     // highlights/selections/etc
-    var EWMA_FRAC = 0.2;
+    var EWMA_FRAC = 0.1;
     var EWMA_ROT_FRAC = 0.2;
     var handState = {
         left: {
@@ -221,7 +212,7 @@ var LeapInterface = function(env) {
             var grabState = getGrabState(hand.grabStrength, prvGrabStr);
 
             var intersectingBin = findIntersectingBin(handPos);
-            updateBinHighlights(intersectingBin);
+            updateIntersectionHighlights(intersectingBin, handType);
 
             // Move the interface cursors
             var c = thisHand.cursor;
@@ -326,8 +317,8 @@ var LeapInterface = function(env) {
     // }, env.getRenderingComponents());
     // controller.use('boneHand', riggedHandOptions);
     var screenPositionOptions = {
-        verticalOffset: 200,
-        scale: 0.4
+        verticalOffset: 250,
+        scale: 0.5
     };
     controller.use('screenPosition', screenPositionOptions);
 };
