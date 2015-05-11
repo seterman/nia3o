@@ -41,7 +41,34 @@
     margin: 5px;
 }
 
-.intersecting-hand {
+.bin.intersecting-hand-left, .bin.intersecting-hand-right {
     background-color: lightblue;
 }
 
+.camera-handle {
+    background-color: darkgray;
+    width: 120px;
+    height: 80px;
+    opacity: 0.3;
+    position: absolute;
+}
+
+.camera-handle-left {
+    bottom: 0;
+    left: 0;
+    border-top-right-radius: 20px;
+}
+.camera-handle-right {
+    top: 0;
+    right: 0;
+    border-bottom-left-radius: 20px;
+}
+
+.held-by-left, .held-by-right {
+    background-color: lightblue;
+    opacity: 0.5;
+}
+
+.camera-handle.intersecting-hand-left, .camera-handle.intersecting-hand-right {
+    opacity: 0.5;
+}
