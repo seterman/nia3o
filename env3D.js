@@ -428,7 +428,7 @@ var Env3D = function() {
 	    // camera control states
 	    // -1: disabled, 0: rotate, 1: zoom, 2: pan
 	    if (state == -1) {
-		controls.enabled = false;
+		controls.disable();
 	    }
 	    else if (state >= 0 & state <= 2) { 
 		controls.enabled = true;

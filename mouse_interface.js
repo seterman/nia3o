@@ -29,6 +29,7 @@ var MouseInterface = function(env) {
 	    selectedObject = grabObject(pos);
 	    initPos = pos.clone();
 	    break;
+
 	case STATES.PLACE_PLANE: // Insert a plane
 	    selectedObject = insertObject(0, pos);
 	    state = STATES.NONE;
@@ -38,19 +39,23 @@ var MouseInterface = function(env) {
 	    state = STATES.NONE;
 	    break;
 	case STATES.PREP_ROTATE_OBJ: // Start rotating an object
-	    initPos = pos.clone();
 	    selectedObject = grabObject(pos);
-	    storedScenePos.x = env.convertToSceneUnits(0, window.innerWidth, e.clientX, "x");
-	    storedScenePos.y = env.convertToSceneUnits(0, window.innerHeight, e.clientY, "y");
-	    storedScenePos.z = 0;
-	    state = STATES.ROTATE_OBJ;
+	    if (selectedObject) {
+		initPos = pos.clone();
+		storedScenePos.x = env.convertToSceneUnits(0, window.innerWidth, e.clientX, "x");
+		storedScenePos.y = env.convertToSceneUnits(0, window.innerHeight, e.clientY, "y");
+		storedScenePos.z = 0;
+		state = STATES.ROTATE_OBJ;
+	    }
+	    break;
 	case STATES.CAM_CONTROL:
 	    selectedObject = grabObject(pos);
 	    if (selectedObject) {
-		state = STATES.NONE
 		env.setMode(-1);
+		state = STATES.NONE
 		initPos = pos.clone();
 	    }
+	    break;
 	default:
 	    break;
 	}
@@ -112,7 +117,8 @@ var MouseInterface = function(env) {
 	    {label: "Camera Rotate", onClick: function() { env.setMode(0); state = STATES.CAM_CONTROL; }},
 	    {label: "Camera Zoom", onClick: function() { env.setMode(1); state = STATES.CAM_CONTROL; }},
 	    {label: "Camera Pan", onClick: function() { env.setMode(2); state = STATES.CAM_CONTROL; }},
-	    {label: "Rotate Object", onClick: function() { state = STATES.PREP_ROTATE_OBJ; }}
+	    {label: "Rotate Object", onClick: function() { env.setMode(-1); state = STATES.PREP_ROTATE_OBJ; }},
+	    {label: "Pan Object", onClick: function() { env.setMode(-1); state = STATES.NONE; }}
 	],
 
 	Actions: [

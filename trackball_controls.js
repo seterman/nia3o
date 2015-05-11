@@ -605,6 +605,13 @@ THREE.TrackballControls = function ( object, domElement ) {
 	_state = _prevState;
     };
 
+    this.disable = function() {
+	document.removeEventListener( 'mousemove', mousemove );
+	document.removeEventListener( 'mouseup', mouseup );
+	_this.dispatchEvent( endEvent );
+	this.enabled = false;
+    };
+
 };
 
 THREE.TrackballControls.prototype = Object.create( THREE.EventDispatcher.prototype );
