@@ -217,7 +217,7 @@ var LeapInterface = function(env) {
             s.intersectingBin.trigger('click', [s.handType, s.handPos]);
         } else if (s.intersectingCam) {
             s.handState.grabbingCam = true;
-            console.log('enabling pan');
+            console.log('grabbing cam with', s.handType,'hand');
             camCtls.enablePan(s.handPos.x, s.handPos.y);
         } else {
             var selection = helpers.selectObjectByPos(s.handPos);
@@ -234,7 +234,14 @@ var LeapInterface = function(env) {
             // if (s.handType == 'right' && s.handState.otherHand.grabbingCam) {
             //     console.log('both hands grabbing cam');
             // }
-            camCtls.pan(s.handPos.x, s.handPos.y);
+
+            // Zoom and pan
+            // If grabbing with both hands, only zoom and pan based on one
+            // this will change once rotate is implemented
+            if (!s.handState.otherHand.grabbingCam || s.handType == 'right') {
+                camCtls.pan(s.handPos.x, s.handPos.y);
+                camCtls.zoom(s.handPos.z - s.handState.lastPos.z);
+            }
 
         } else if (s.handState.currentSelection) {
             // transform the selected object
@@ -274,7 +281,11 @@ var LeapInterface = function(env) {
     var handleNoGrab = function(s) {
         s.handState.grabStartFrame = null;
         s.handState.grabbingCam = false;
-        camCtls.disable();
+
+        // disable camera controls if neither hand is grabbign the camera
+        if (!s.handState.otherHand.grabbingCam) {
+            camCtls.disable();
+        }
 
         if (s.handState.currentSelection) {
             helpers.deselectObject(s.handState.currentSelection);
@@ -309,8 +320,6 @@ var LeapInterface = function(env) {
     var controllerOptions = {};
     var controller = Leap.loop(controllerOptions, function(frame) {
         // var rhScope = this.plugins.riggedHand;
-        // cursors.left.hide();
-        // cursors.right.hide();
         handState.left.cursor.hide();
         handState.right.cursor.hide();
 
@@ -382,7 +391,7 @@ var LeapInterface = function(env) {
     // }, env.getRenderingComponents());
     // controller.use('boneHand', riggedHandOptions);
     var screenPositionOptions = {
-        verticalOffset: 300,
+        verticalOffset: 400,
         scale: 0.5
     };
     controller.use('screenPosition', screenPositionOptions);

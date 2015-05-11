@@ -1,4 +1,5 @@
 var SCALE = 0.4;
+var ZOOM_SCALE = -1.5;
 
 var LeapCameraControls = function(env) {
 
@@ -9,12 +10,16 @@ var LeapCameraControls = function(env) {
         document.dispatchEvent(e);
     };
 
+    var triggerScrollEvent = function(amt) {
+        var e = new WheelEvent('wheel', { deltaY: Math.round(amt) });
+        document.dispatchEvent(e);
+    };
 
     // Since rotate uses two hands, x and y should be proportional to the
     // x and y of the rightmost hand minus the x and y of the leftmost hand
     this.enableRotate = function(startX, startY) {
-        triggerEvent("mousedown", startX, startY);
         env.setMode(0);
+        triggerEvent("mousedown", startX, startY);
     };
 
     this.rotate = function(x, y) {
@@ -22,12 +27,12 @@ var LeapCameraControls = function(env) {
     };
     
     this.enableZoom = function(startZ) {
-        triggerEvent("mousedown", 0, startZ);
         env.setMode(1);
+        triggerEvent("mousedown", 0, startZ);
     };
 
     this.zoom = function(z) {
-       triggerEvent("mousemove", 0, z);
+        triggerScrollEvent(z * ZOOM_SCALE);
     };
 
     this.enablePan = function(startX, startY) {
