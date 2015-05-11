@@ -33,6 +33,12 @@ var leapZToScale = function(leapZ) {
     return Math.max(result, 0.1);
 };
 
+var camCtls;
+
+///////////////////////////////////////////////////////////////////////////////
+// Grabbing and rotation helpers
+///////////////////////////////////////////////////////////////////////////////
+
 // Get the average grab strength for the previous numSteps frames
 var previousGrabStrength = function(controller, hand, numSteps) {
     var total = 0.0;
@@ -122,6 +128,8 @@ var updateIntersectionHighlights = function(intersecting, type) {
 ///////////////////////////////////////////////////////////////////////////////
 
 var LeapInterface = function(env) {
+    camCtls = LeapCameraControls(env);
+
     ///////////////////////////////////////////////////////////////////////////
     // Helpers
     ///////////////////////////////////////////////////////////////////////////
@@ -166,6 +174,7 @@ var LeapInterface = function(env) {
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
+            grabbingCam: false,
         },
         right: {
             cursor: new Cursor(true),
@@ -179,11 +188,15 @@ var LeapInterface = function(env) {
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
+            grabbingCam: false,
         }
     };
     handState.left.otherHand = handState.right;
     handState.right.otherHand = handState.left;
 
+    ///////////////////////////////////////////////////////////////////////////
+    // Grab handling
+    ///////////////////////////////////////////////////////////////////////////
 
     var handleGrabStart = function(s) {
         s.handState.grabStartProcessed = true;
@@ -202,6 +215,10 @@ var LeapInterface = function(env) {
 
         if (s.intersectingBin) {
             s.intersectingBin.trigger('click', [s.handType, s.handPos]);
+        } else if (s.intersectingCam) {
+            s.handState.grabbingCam = true;
+            console.log('enabling pan');
+            camCtls.enablePan(s.handPos.x, s.handPos.y);
         } else {
             var selection = helpers.selectObjectByPos(s.handPos);
             if (selection != s.handState.otherHand.currentSelection) {
@@ -210,10 +227,18 @@ var LeapInterface = function(env) {
         }
     };
 
-    // TODO!!!!!! figure out why moving is weird after an object is placed
+    // TODO!!!!!! figure out why moving lags weirdly after an object is placed
     var handleGrabActive = function(s) {
-        // transform the selected object
-        if (s.handState.currentSelection) {
+        if (s.handState.grabbingCam) {
+            // console.log('cam moving');
+            // if (s.handType == 'right' && s.handState.otherHand.grabbingCam) {
+            //     console.log('both hands grabbing cam');
+            // }
+            camCtls.pan(s.handPos.x, s.handPos.y);
+
+        } else if (s.handState.currentSelection) {
+            // transform the selected object
+
             // rotation since one frame ago
             // takes an exponentially weighted moving average
             // this needs tweaking, probably
@@ -233,7 +258,7 @@ var LeapInterface = function(env) {
             var lastXformPos = handPosToTransformPos(s.handState.lastPos);
             var currentXformPos = handPosToTransformPos(s.handPos);
             var translation = currentXformPos.sub(lastXformPos);
-            s.handState.lastPos = s.handPos;
+            // s.handState.lastPos = s.handPos;
 
             // do the transform
             helpers.transformObject(
@@ -242,10 +267,15 @@ var LeapInterface = function(env) {
                 translation,
                 s.handState.grabStartPos);
         }
+        // update the last position
+        s.handState.lastPos = s.handPos;
     };
 
     var handleNoGrab = function(s) {
         s.handState.grabStartFrame = null;
+        s.handState.grabbingCam = false;
+        camCtls.disable();
+
         if (s.handState.currentSelection) {
             helpers.deselectObject(s.handState.currentSelection);
             s.handState.currentSelection = null;
