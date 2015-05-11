@@ -64,7 +64,11 @@
     border-bottom-left-radius: 20px;
 }
 
+.held-by-left, .held-by-right {
+    background-color: lightblue;
+    opacity: 0.5;
+}
+
 .camera-handle.intersecting-hand-left, .camera-handle.intersecting-hand-right {
     opacity: 0.5;
-    background-color: #a9a9bd;
 }

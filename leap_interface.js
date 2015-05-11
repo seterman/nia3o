@@ -68,6 +68,14 @@ var getAngle = function(hand) {
     return new THREE.Vector3(hand.pitch(), hand.yaw(), hand.roll());
 };
 
+var deltaPos = function(p1, p2) {
+    return {
+        x: p2.x - p1.x,
+        y: p2.y - p1.y,
+        z: p2.z - p1.z
+    };
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // GUI
 ///////////////////////////////////////////////////////////////////////////////
@@ -185,6 +193,7 @@ var LeapInterface = function(env) {
             grabStartPos: { x: 0, y: 0, z: 0 },
             lastPos: { x: 0, y: 0, z: 0 },
             lastAngle: new THREE.Vector3(0, 0, 0),
+            lastDelta: { x: 0, y: 0, z: 0 }, // NOTE this is different from left!
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
@@ -216,9 +225,23 @@ var LeapInterface = function(env) {
         if (s.intersectingBin) {
             s.intersectingBin.trigger('click', [s.handType, s.handPos]);
         } else if (s.intersectingCam) {
+            s.intersectingCam.addClass("held-by-"+s.handType);
+
             s.handState.grabbingCam = true;
             console.log('grabbing cam with', s.handType,'hand');
-            camCtls.enablePan(s.handPos.x, s.handPos.y);
+            if (s.handState.otherHand.grabbingCam) {
+                console.log('enabling rotation');
+                camCtls.disable();
+
+                var delta = deltaPos(s.handPos, s.handState.otherHand.lastPos);
+                camCtls.enableRotate(delta.x, delta.y);
+                // Only the right hand tracks the difference in position between
+                // hands
+                handState.right.lastDelta = delta;
+            } else {
+                console.log('enabling zoom/pan');
+                camCtls.enablePan(s.handPos.x, s.handPos.y);
+            }
         } else {
             var selection = helpers.selectObjectByPos(s.handPos);
             if (selection != s.handState.otherHand.currentSelection) {
@@ -235,10 +258,17 @@ var LeapInterface = function(env) {
             //     console.log('both hands grabbing cam');
             // }
 
-            // Zoom and pan
-            // If grabbing with both hands, only zoom and pan based on one
-            // this will change once rotate is implemented
-            if (!s.handState.otherHand.grabbingCam || s.handType == 'right') {
+            if (s.handState.otherHand.grabbingCam) {
+                // Make sure we don't double count rotation
+                if (s.handType == 'right') {
+                    // Rotate
+                    var d1 = deltaPos(s.handPos, s.handState.otherHand.lastPos);
+                    var d2 = s.handState.lastDelta;
+                    // console.log('rotating. delta:',d2.x - d1.x,d2.y - d1.y);
+                    camCtls.rotate(d1.z - d2.z, d1.y - d2.y);
+                }
+            } else {
+                // console.log('pan/zooming');
                 camCtls.pan(s.handPos.x, s.handPos.y);
                 camCtls.zoom(s.handPos.z - s.handState.lastPos.z);
             }
@@ -280,12 +310,18 @@ var LeapInterface = function(env) {
 
     var handleNoGrab = function(s) {
         s.handState.grabStartFrame = null;
-        s.handState.grabbingCam = false;
+        $('.held-by-'+s.handType).removeClass('held-by-'+s.handType);
 
-        // disable camera controls if neither hand is grabbign the camera
-        if (!s.handState.otherHand.grabbingCam) {
+        // if we are letting go of the camera, reset camera controls
+        // depending on what the other hand is doing
+        if (s.handState.grabbingCam) {
             camCtls.disable();
+            if (s.handState.otherHand.grabbingCam) {
+                var p = s.handState.otherHand.lastPos;
+                camCtls.enablePan(p.x, p.y);
+            }
         }
+        s.handState.grabbingCam = false;
 
         if (s.handState.currentSelection) {
             helpers.deselectObject(s.handState.currentSelection);

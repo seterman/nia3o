@@ -26,10 +26,11 @@ var LeapCameraControls = function(env) {
        triggerEvent("mousemove", x, y);
     };
     
-    this.enableZoom = function(startZ) {
-        env.setMode(1);
-        triggerEvent("mousedown", 0, startZ);
-    };
+    // unneeded since zoom was switched to use the mousewheel
+    // this.enableZoom = function(startZ) {
+    //     env.setMode(1);
+    //     triggerEvent("mousedown", 0, startZ);
+    // };
 
     this.zoom = function(z) {
         triggerScrollEvent(z * ZOOM_SCALE);
