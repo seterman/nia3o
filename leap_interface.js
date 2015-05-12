@@ -94,10 +94,12 @@ var binContainer = $('<div class="bin-container">');
 // binContainer.append(addCubeBtn);
 var coneBin = $('<div class="bin">Cone Bin</div>');
 var planeBin = $('<div class="bin">Plane Bin</div>');
-binContainer.append(coneBin, planeBin);
+var trash = $('<div class="trash">Trash</div>');
+binContainer.append(coneBin, planeBin, trash);
 
 var cameraHandleRight = $('<div class="camera-handle camera-handle-right">');
 var cameraHandleLeft = $('<div class="camera-handle camera-handle-left">');
+
 
 // indicate which (if any) of the controls are underneath the given
 // position. Return false if no element intersects POS, or the element
@@ -145,9 +147,9 @@ var updateIntersectionHighlights = function(intersecting, type) {
 ///////////////////////////////////////////////////////////////////////////////
 
 var LeapInterface = function(env) {
-    camCtls = LeapCameraControls(env);
+    // camCtls = LeapCameraControls(env);
 
-    env.addCubes();
+    // env.addCubes();
 
     ///////////////////////////////////////////////////////////////////////////
     // Helpers
@@ -181,7 +183,7 @@ var LeapInterface = function(env) {
     var EWMA_FRAC = 0.1;
     var EWMA_ROT_FRAC = 0.2;
     var CAM_TRANSLATE_SCALE = 0.01;
-    var CAM_ROTATE_SCALE = 0.005;
+    var CAM_ROTATE_SCALE = 0.002;
     var handState = {
         left: {
             cursor: new Cursor(false),
@@ -215,7 +217,6 @@ var LeapInterface = function(env) {
     };
     handState.left.otherHand = handState.right;
     handState.right.otherHand = handState.left;
-
 
     ///////////////////////////////////////////////////////////////////////////
     // Grab handling
@@ -286,29 +287,32 @@ var LeapInterface = function(env) {
                     var lastDiff = s.handState.lastDifference;
 
                     var movement = deltaPos(currentDiff, lastDiff);
+                    var mag = new THREE.Vector3(movement.x, movement.y, movement.z).length();
+                    if (mag > 2) {
 
-                    // x and y changing more than z -> rotate around z axis
-                    // x and z changing more than y -> rotate around y axis
-                    // y and z changing more than x -> rotate around x axis
-                    var f = function(a, b) {
-                        if (Math.abs(a) > Math.abs(b)) return a;
-                        return b;
-                    };
+                        // x and y changing more than z -> rotate around z axis
+                        // x and z changing more than y -> rotate around y axis
+                        // y and z changing more than x -> rotate around x axis
+                        var f = function(a, b) {
+                            if (Math.abs(a) > Math.abs(b)) return a;
+                            return b;
+                        };
 
-                    var dx, dy, dz;
-                    var z = thisPos.y < otherPos.y ? movement.z : -movement.z;
-                    dx = f(z, -movement.y);
-                    var x1 = thisPos.z > otherPos.z ? movement.x : -movement.x;
-                    dy = f(x1, -movement.z);
-                    var x2 = thisPos.y > otherPos.y ? movement.x : -movement.x;
-                    dz = f(x2, -movement.y);
+                        var dx, dy, dz;
+                        var z = thisPos.y < otherPos.y ? movement.z : -movement.z;
+                        dx = f(z, -movement.y);
+                        var x1 = thisPos.z > otherPos.z ? movement.x : -movement.x;
+                        dy = f(x1, -movement.z);
+                        var x2 = thisPos.y > otherPos.y ? movement.x : -movement.x;
+                        dz = f(x2, -movement.y);
 
-                    delta = new THREE.Vector3(dx, dy, dz);
-                    delta.multiplyScalar(CAM_ROTATE_SCALE);
+                        delta = new THREE.Vector3(dx, dy, dz);
+                        delta.multiplyScalar(CAM_ROTATE_SCALE);
 
-                    env.transformCamera(delta, new THREE.Vector3(0,0,0));
+                        env.transformCamera(delta, new THREE.Vector3(0,0,0));
 
-                    s.handState.lastDifference = currentDiff;
+                        s.handState.lastDifference = currentDiff;
+                    }
                 }
             } else {
                 // console.log('pan/zooming');
@@ -362,17 +366,20 @@ var LeapInterface = function(env) {
 
         // if we are letting go of the camera, reset camera controls
         // depending on what the other hand is doing
-        if (s.handState.grabbingCam) {
-            camCtls.disable();
-            if (s.handState.otherHand.grabbingCam) {
-                var p = s.handState.otherHand.lastPos;
-                camCtls.enablePan(p.x, p.y);
-            }
-        }
+        // if (s.handState.grabbingCam) {
+        //     camCtls.disable();
+        //     if (s.handState.otherHand.grabbingCam) {
+        //         var p = s.handState.otherHand.lastPos;
+        //         camCtls.enablePan(p.x, p.y);
+        //     }
+        // }
         s.handState.grabbingCam = false;
 
         if (s.handState.currentSelection) {
             helpers.deselectObject(s.handState.currentSelection);
+            if (s.intersectingTrash) {
+                env.removeByName(s.handState.currentSelection.name);
+            }
             s.handState.currentSelection = null;
         }
 
@@ -395,8 +402,29 @@ var LeapInterface = function(env) {
         var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
         handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.PLANE, pos);
     });
+    cubeBin.click(function(evt, handType, handPos) {
+        var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
+        handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.CUBE, pos);
+    });
+    cylBin.click(function(evt, handType, handPos) {
+        var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
+        handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.CYLINDER, pos);
+    });
+    sphereBin.click(function(evt, handType, handPos) {
+        var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
+        handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.SPHERE, pos);
+    });
     $('body').prepend(binContainer);
     $('body').append(cameraHandleLeft, cameraHandleRight);
+
+    var hideCamCtls = function() {
+        cameraHandleRight.hide();
+        cameraHandleLeft.hide();
+    };
+    var showCamCtls = function() {
+        cameraHandleRight.show();
+        cameraHandleLeft.show();
+    };
 
     ///////////////////////////////////////////////////////////////////////////
     // Leap controller
@@ -425,8 +453,10 @@ var LeapInterface = function(env) {
 
             var intersectingBin = findIntersectingBin(handPos);
             var intersectingCam = findIntersectingCameraHandle(handPos);
+            var intersectingTrash = findIntersecting(handPos, $('.trash'));
             updateIntersectionHighlights(
-                intersectingBin || intersectingCam, handType);
+                intersectingBin || intersectingCam || intersectingTrash,
+                handType);
 
             // Move the interface cursors
             var c = thisHand.cursor;
@@ -440,6 +470,7 @@ var LeapInterface = function(env) {
                 'handType': handType,
                 'intersectingBin': intersectingBin,
                 'intersectingCam': intersectingCam,
+                'intersectingTrash': intersectingTrash,
             };
 
             // Process grab state

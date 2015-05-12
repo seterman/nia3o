@@ -18,7 +18,10 @@ $(document).ready(function() {
     // Object type enumerables
     OBJECT_TYPES = {
 	PLANE: 0,
-	CONE: 1
+	CONE: 1,
+    CUBE: 2,
+    SPHERE: 3,
+    CYLINDER: 4
     };
 
     // Keeps track of splits so that they can be remerged if the plane moves.
