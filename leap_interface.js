@@ -296,29 +296,12 @@ var LeapInterface = function(env) {
                     };
 
                     var dx, dy, dz;
-                    var x;
-                    switch (smallestAxis(movement)) {
-                        case 'x':
-                        var z = thisPos.y < otherPos.y ? movement.z : -movement.z;
-                            dx = f(z, -movement.y);
-                            // dx = 0;
-                            dy = dz = 0;
-                            break;
-                        case 'y':
-                            x = thisPos.z > otherPos.z ? movement.x : -movement.x;
-                            dy = f(x, -movement.z);
-                            // dy = 0;
-                            dx = dz = 0;
-                            break;
-                        case 'z':
-                            x = thisPos.y > otherPos.y ? movement.x : -movement.x;
-                            dz = f(x, -movement.y);
-                            // dz = 0;
-                            dx = dy = 0;
-                            break;
-                        default:
-                            throw new Error("can't reach here");
-                    }
+                    var z = thisPos.y < otherPos.y ? movement.z : -movement.z;
+                    dx = f(z, -movement.y);
+                    var x1 = thisPos.z > otherPos.z ? movement.x : -movement.x;
+                    dy = f(x1, -movement.z);
+                    var x2 = thisPos.y > otherPos.y ? movement.x : -movement.x;
+                    dz = f(x2, -movement.y);
 
                     delta = new THREE.Vector3(dx, dy, dz);
                     delta.multiplyScalar(CAM_ROTATE_SCALE);
@@ -326,29 +309,6 @@ var LeapInterface = function(env) {
                     env.transformCamera(delta, new THREE.Vector3(0,0,0));
 
                     s.handState.lastDifference = currentDiff;
-
-                    // console.log('last delta:', lastDiff);
-                    // d = deltaPos(currentDiff, lastDiff);
-
-                    // var dx, dy;
-                    // if (currentDiff.x > currentDiff.y) {
-
-                    // }
-
-                    // dy = -d.z;
-                    // // change in x should control y axis
-                    // // change in y should control z axis
-                    // // z: right lower = d.x, left lower = -d.x
-                    // var dz = thisPos.y > otherPos.y ? d.x : -d.x;
-
-                    // delta = new THREE.Vector3(/*d.y*/0, dy, 0/*dz*/);
-                    // // console.log('rotating:',delta);
-                    // delta.multiplyScalar(CAM_ROTATE_SCALE);
-                    // env.transformCamera(delta, new THREE.Vector3(0,0,0));
-                    // // camCtls.rotate(currentDiff.z - lastDiff.z, currentDiff.y - lastDiff.y);
-
-                    // s.handState.lastDifference = currentDiff;
-                    // throw new Error('stop');
                 }
             } else {
                 // console.log('pan/zooming');
