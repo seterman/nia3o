@@ -76,6 +76,15 @@ var deltaPos = function(p1, p2) {
     };
 };
 
+var smallestAxis = function(v) {
+    var x = Math.abs(v.x);
+    var y = Math.abs(v.y);
+    var z = Math.abs(v.z);
+    if (x < y && x < z) return 'x';
+    if (y < x && y < z) return 'y';
+    return 'z';
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // GUI
 ///////////////////////////////////////////////////////////////////////////////
@@ -138,6 +147,8 @@ var updateIntersectionHighlights = function(intersecting, type) {
 var LeapInterface = function(env) {
     camCtls = LeapCameraControls(env);
 
+    env.addCubes();
+
     ///////////////////////////////////////////////////////////////////////////
     // Helpers
     ///////////////////////////////////////////////////////////////////////////
@@ -169,6 +180,8 @@ var LeapInterface = function(env) {
     // highlights/selections/etc
     var EWMA_FRAC = 0.1;
     var EWMA_ROT_FRAC = 0.2;
+    var CAM_TRANSLATE_SCALE = 0.01;
+    var CAM_ROTATE_SCALE = 0.005;
     var handState = {
         left: {
             cursor: new Cursor(false),
@@ -193,7 +206,7 @@ var LeapInterface = function(env) {
             grabStartPos: { x: 0, y: 0, z: 0 },
             lastPos: { x: 0, y: 0, z: 0 },
             lastAngle: new THREE.Vector3(0, 0, 0),
-            lastDelta: { x: 0, y: 0, z: 0 }, // NOTE this is different from left!
+            lastDifference: { x: 0, y: 0, z: 0 }, // NOTE this is different from left!
             grabEndProcessed: false,
             currentSelection: null,
             currentHighlight: null,
@@ -202,6 +215,7 @@ var LeapInterface = function(env) {
     };
     handState.left.otherHand = handState.right;
     handState.right.otherHand = handState.left;
+
 
     ///////////////////////////////////////////////////////////////////////////
     // Grab handling
@@ -228,19 +242,19 @@ var LeapInterface = function(env) {
             s.intersectingCam.addClass("held-by-"+s.handType);
 
             s.handState.grabbingCam = true;
-            console.log('grabbing cam with', s.handType,'hand');
+            // console.log('grabbing cam with', s.handType,'hand');
             if (s.handState.otherHand.grabbingCam) {
-                console.log('enabling rotation');
-                camCtls.disable();
+                // console.log('enabling rotation');
+                // camCtls.disable();
 
-                var delta = deltaPos(s.handPos, s.handState.otherHand.lastPos);
-                camCtls.enableRotate(delta.x, delta.y);
+                var difference = deltaPos(s.handPos, s.handState.otherHand.lastPos);
+                // camCtls.enableRotate(difference.x, difference.y);
                 // Only the right hand tracks the difference in position between
                 // hands
-                handState.right.lastDelta = delta;
+                handState.right.lastDifference = difference;
             } else {
-                console.log('enabling zoom/pan');
-                camCtls.enablePan(s.handPos.x, s.handPos.y);
+                // console.log('enabling zoom/pan');
+                // camCtls.enablePan(s.handPos.x, s.handPos.y);
             }
         } else {
             var selection = helpers.selectObjectByPos(s.handPos);
@@ -258,19 +272,53 @@ var LeapInterface = function(env) {
             //     console.log('both hands grabbing cam');
             // }
 
+            var d, delta;
             if (s.handState.otherHand.grabbingCam) {
                 // Make sure we don't double count rotation
                 if (s.handType == 'right') {
                     // Rotate
-                    var d1 = deltaPos(s.handPos, s.handState.otherHand.lastPos);
-                    var d2 = s.handState.lastDelta;
-                    // console.log('rotating. delta:',d2.x - d1.x,d2.y - d1.y);
-                    camCtls.rotate(d1.z - d2.z, d1.y - d2.y);
+                    // console.log('current hand pos:', s.handPos);
+                    // console.log('other hand pos:', s.handState.otherHand.lastPos);
+                    var thisPos = s.handPos;
+                    var otherPos = s.handState.otherHand.lastPos;
+                    var currentDiff = deltaPos(thisPos, otherPos);
+                    // console.log('current delta:', currentDiff);
+                    var lastDiff = s.handState.lastDifference;
+
+                    var movement = deltaPos(currentDiff, lastDiff);
+
+                    // x and y changing more than z -> rotate around z axis
+                    // x and z changing more than y -> rotate around y axis
+                    // y and z changing more than x -> rotate around x axis
+                    var f = function(a, b) {
+                        if (Math.abs(a) > Math.abs(b)) return a;
+                        return b;
+                    };
+
+                    var dx, dy, dz;
+                    var z = thisPos.y < otherPos.y ? movement.z : -movement.z;
+                    dx = f(z, -movement.y);
+                    var x1 = thisPos.z > otherPos.z ? movement.x : -movement.x;
+                    dy = f(x1, -movement.z);
+                    var x2 = thisPos.y > otherPos.y ? movement.x : -movement.x;
+                    dz = f(x2, -movement.y);
+
+                    delta = new THREE.Vector3(dx, dy, dz);
+                    delta.multiplyScalar(CAM_ROTATE_SCALE);
+
+                    env.transformCamera(delta, new THREE.Vector3(0,0,0));
+
+                    s.handState.lastDifference = currentDiff;
                 }
             } else {
                 // console.log('pan/zooming');
-                camCtls.pan(s.handPos.x, s.handPos.y);
-                camCtls.zoom(s.handPos.z - s.handState.lastPos.z);
+                // camCtls.pan(s.handPos.x, s.handPos.y);
+                // camCtls.zoom(s.handPos.z - s.handState.lastPos.z);
+                d = deltaPos(s.handPos, s.handState.lastPos);
+                // vertical axis must be inverted
+                delta = new THREE.Vector3(d.x, -d.y, d.z);
+                delta.multiplyScalar(CAM_TRANSLATE_SCALE);
+                env.transformCamera(new THREE.Vector3(0,0,0), delta);
             }
 
         } else if (s.handState.currentSelection) {
