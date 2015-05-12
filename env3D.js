@@ -338,6 +338,16 @@ var Env3D = function() {
 	    case 1: // cone
 	        obj.geometry = new THREE.CylinderGeometry(0, 1/2, 1, 50, 0);
 	        break;
+	    case 2: // cube
+	        obj.geometry = new THREE.BoxGeometry(1, 1, 1);
+	        break;
+	    case 3: // sphere
+	        obj.geometry = new THREE.SphereGeometry(0.5, 50, 50);
+	        break;
+	    case 4: // cylinder
+	        obj.geometry = new THREE.CylinderGeometry(1/2, 1/2, 1, 50, 0);
+	        break;
+	    case
 	    default:
 	        return;
 	}
