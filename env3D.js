@@ -300,7 +300,7 @@ var Env3D = function() {
 	for (var x=-10; x<=10; x+=2) {
 	    for (var y=-3; y <= 3; y+=2) {
 		var geometry = new THREE.BoxGeometry( 1, 1, 1 );
-		var material = new THREE.MeshLambertMaterial( { color: 0x00ff00 } );
+		var material = new THREE.MeshLambertMaterial( { color: 0x009900 } );
 		material.side = THREE.DoubleSide;
 		var cube = new THREE.Mesh( geometry, material );
 		cube.position.x = x;
