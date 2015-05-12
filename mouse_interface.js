@@ -1,6 +1,6 @@
 // Adds functionality for the mouse
 var MouseInterface = function(env) {
-    var STATES = { NONE: -1, PLACE_PLANE: 0, PLACE_CONE: 1, PREP_ROTATE_OBJ: 2, ROTATE_OBJ: 3, CAM_CONTROL: 4 };
+    var STATES = { NONE: -1, PLACE_PLANE: 0, PLACE_CONE: 1, PREP_ROTATE_OBJ: 2, ROTATE_OBJ: 3, PREP_ROTATE_CAM: 4, ROTATE_CAM: 5, PREP_PAN_CAM: 6, PAN_CAM: 7, PREP_ZOOM_CAM: 8, ZOOM_CAM: 9, CAM_CONTROL: 10 };
     var state = STATES.NONE;
 
     // Used to keep track of cursor position when needed
@@ -48,6 +48,27 @@ var MouseInterface = function(env) {
 		state = STATES.ROTATE_OBJ;
 	    }
 	    break;
+	case STATES.PREP_ROTATE_CAM:
+	    initPos = pos.clone();
+	    storedScenePos.x = env.convertToSceneUnits(0, window.innerWidth, e.clientX, "x");
+	    storedScenePos.y = env.convertToSceneUnits(0, window.innerHeight, e.clientY, "y");
+	    storedScenePos.z = 0;
+	    state = STATES.ROTATE_CAM;
+	    break;
+	case STATES.PREP_PAN_CAM:
+	    initPos = pos.clone();
+	    storedScenePos.x = env.convertToSceneUnits(0, window.innerWidth, e.clientX, "x");
+	    storedScenePos.y = env.convertToSceneUnits(0, window.innerHeight, e.clientY, "y");
+	    storedScenePos.z = 0;
+	    state = STATES.PAN_CAM;
+	    break;
+	case STATES.PREP_ZOOM_CAM:
+	    initPos = pos.clone();
+	    storedScenePos.x = env.convertToSceneUnits(0, window.innerWidth, e.clientX, "x");
+	    storedScenePos.y = env.convertToSceneUnits(0, window.innerHeight, e.clientY, "y");
+	    storedScenePos.z = 0;
+	    state = STATES.ZOOM_CAM;
+	    break;
 	case STATES.CAM_CONTROL:
 	    selectedObject = grabObject(pos);
 	    if (selectedObject) {
@@ -88,6 +109,35 @@ var MouseInterface = function(env) {
 	    transformObject(selectedObject, dO, dP, initPos);
 	    storedScreenPos = currPos.clone();
 	    break;
+	case STATES.ROTATE_CAM: // Rotate camera //TODO: less copy paste?
+	    var currPos = new THREE.Vector3(e.clientX, e.clientY, NULL_CLIENT_Z);
+	    var dO = new THREE.Vector3(0, 0, 0);
+	    var dP = new THREE.Vector3(0, 0, 0);
+	    var radsPerPx = 0.01;
+	    dO.x = (e.clientY-storedScreenPos.y)*radsPerPx;
+	    dO.y = (e.clientX-storedScreenPos.x)*radsPerPx;
+	    env.transformCamera(dO, dP);
+	    storedScreenPos = currPos.clone();
+	    break;
+	case STATES.PAN_CAM:
+	    var currPos = new THREE.Vector3(e.clientX, e.clientY, NULL_CLIENT_Z);
+	    var dO = new THREE.Vector3(0, 0, 0);
+	    var dP = new THREE.Vector3(0, 0, 0);
+	    var coordsPerPx = 0.01;
+	    dP.x = (-e.clientX+storedScreenPos.x)*coordsPerPx;
+	    dP.y = (e.clientY-storedScreenPos.y)*coordsPerPx;
+	    env.transformCamera(dO, dP);
+	    storedScreenPos = currPos.clone();
+	    break;
+	case STATES.ZOOM_CAM:
+	    var currPos = new THREE.Vector3(e.clientX, e.clientY, NULL_CLIENT_Z);
+	    var dO = new THREE.Vector3(0, 0, 0);
+	    var dP = new THREE.Vector3(0, 0, 0);
+	    var radsPerPx = 0.01;
+	    dP.z = (e.clientY-storedScreenPos.y);
+	    env.transformCamera(dO, dP);
+	    storedScreenPos = currPos.clone();
+	    break;
 	default:
 	    break;
 	}
@@ -106,6 +156,15 @@ var MouseInterface = function(env) {
 	    // Stop the current rotation and prep for another rotation
 	    state = STATES.PREP_ROTATE_OBJ;
 	    break;
+	case STATES.ROTATE_CAM:
+	    state = STATES.PREP_ROTATE_CAM;
+	    break;
+	case STATES.ZOOM_CAM:
+	    state = STATES.PREP_ZOOM_CAM;
+	    break;
+	case STATES.PAN_CAM:
+	    state = STATES.PREP_PAN_CAM;
+	    break;
 	default:
 	    break;
 	}
@@ -114,9 +173,9 @@ var MouseInterface = function(env) {
     // Stores the labels and onClick events for each GUI button
     var buttons = {
 	Modes: [
-	    {label: "Camera Rotate", onClick: function() { env.setMode(0); state = STATES.CAM_CONTROL; }},
-	    {label: "Camera Zoom", onClick: function() { env.setMode(1); state = STATES.CAM_CONTROL; }},
-	    {label: "Camera Pan", onClick: function() { env.setMode(2); state = STATES.CAM_CONTROL; }},
+	    {label: "Camera Rotate", onClick: function() { env.setMode(-1); state = STATES.PREP_ROTATE_CAM; }},
+	    {label: "Camera Zoom", onClick: function() { env.setMode(-1); state = STATES.PREP_ZOOM_CAM; }},
+	    {label: "Camera Pan", onClick: function() { env.setMode(-1); state = STATES.PREP_PAN_CAM; }},
 	    {label: "Rotate Object", onClick: function() { env.setMode(-1); state = STATES.PREP_ROTATE_OBJ; }},
 	    {label: "Pan Object", onClick: function() { env.setMode(-1); state = STATES.NONE; }}
 	],

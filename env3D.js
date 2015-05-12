@@ -28,7 +28,7 @@ var Env3D = function() {
     var render = function () {
 	requestAnimationFrame(render);
 	renderer.render(scene, camera);
-        controls.update();
+        //controls.update();
     };
     render();
 
@@ -356,10 +356,11 @@ var Env3D = function() {
     // Rotates an object based on p1 and p2, which are instances of THREE.Vector3 
     // and represent the before and after positions of the cursor respectively.
     var rotateObject = function(p1, p2) {
-	if (selectedObject) { 
+	var object = selectedObject;
+	if (object) { 
 	    
 	    // Get the object's position and the direction of the camera face
-	    var objPos = selectedObject.position.clone();
+	    var objPos = object.position.clone();
 	    var camZDir = new THREE.Vector3(0, 0, 1).applyMatrix4(camera.matrixWorld);
 	    
 	    // Transform p1 and p2 into scene coords and project them on the camera's projection plane
@@ -373,9 +374,9 @@ var Env3D = function() {
 	    var e = new THREE.Euler(0, 0, 0, "XYZ").setFromQuaternion(q);
 
 	    // Add the calculated rotation to the object's current rotation
-	    selectedObject.rotation.x += e.x;
-	    selectedObject.rotation.y += e.y;
-	    selectedObject.rotation.z += e.z;
+	    object.rotation.x += e.x;
+	    object.rotation.y += e.y;
+	    object.rotation.z += e.z;
 	}
     };   
 
@@ -420,6 +421,11 @@ var Env3D = function() {
 	object.rotation.setFromVector3(deltaOri.add(object.rotation.toVector3()));
     };
 
+    var transformCamera = function(deltaOri, deltaPos) {
+	camera.position.add(deltaPos);
+	camera.rotation.setFromVector3(camera.rotation.toVector3().sub(deltaOri));
+    }
+
     return {
 	getRenderingComponents: getRenderingComponents,
 	addCubes: addCubes,
@@ -450,6 +456,7 @@ var Env3D = function() {
 	convertToSceneUnits: convertToSceneUnits,
 	removeByName: function(name) { objects.remove(objects.getObjectByName(name)); },
 	addObject: function(obj) { objects.add(obj); },
-	getObjectByName: function(name) { return objects.getObjectByName(name); }
+	getObjectByName: function(name) { return objects.getObjectByName(name); },
+	transformCamera: transformCamera
     };
 };
