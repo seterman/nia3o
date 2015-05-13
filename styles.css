@@ -29,7 +29,7 @@
     width: 100%;
 }
 
-.bin {
+.bin, .trash {
     width: 80px;
     height: 80px;
     opacity: 0.8;
@@ -43,6 +43,14 @@
 
 .bin.intersecting-hand-left, .bin.intersecting-hand-right {
     background-color: lightblue;
+}
+
+.trash.intersecting-hand-right, .trash.intersecting-hand-left {
+    background-color: red;
+}
+
+.trash {
+    margin-left: 50px;
 }
 
 .camera-handle {

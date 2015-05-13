@@ -336,7 +336,7 @@ var Env3D = function() {
 	        obj.userData.isPlane = true;
 	        break;
 	    case 1: // cone
-	        obj.geometry = new THREE.CylinderGeometry(0, 1/2, 1, 50, 0);
+	        obj.geometry = new THREE.CylinderGeometry(0.01, 1/2, 1, 50);
 	        break;
 	    case 2: // cube
 	        obj.geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -405,7 +405,7 @@ var Env3D = function() {
 	var subtracted = objBSP.subtract(planeBSP);
 	var mesh1 = subtracted.toMesh(new THREE.MeshLambertMaterial({color: 0x009900}));
 	mesh1.material.side = THREE.DoubleSide;
-	mesh1.geometry.computeVertexNormals();
+	// mesh1.geometry.computeVertexNormals();
 	mesh1.name = objectName+"-0";
 	objects.add(mesh1);
 	// Reposition the extended plane so the bototm face is at the original
@@ -416,7 +416,7 @@ var Env3D = function() {
 	subtracted = objBSP.subtract(planeBSP);
 	var mesh2 = subtracted.toMesh(new THREE.MeshLambertMaterial({color: 0x009900}));
 	mesh2.material.side = THREE.DoubleSide;
-	mesh2.geometry.computeVertexNormals();
+	// mesh2.geometry.computeVertexNormals();
 	mesh2.name = objectName+"-1";
 	objects.add(mesh2);
 	return [mesh1, mesh2];
