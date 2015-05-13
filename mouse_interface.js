@@ -3,6 +3,8 @@ var MouseInterface = function(env) {
     var STATES = { NONE: -1, PLACE_PLANE: 0, PLACE_CONE: 1, PREP_ROTATE_OBJ: 2, ROTATE_OBJ: 3, PREP_ROTATE_CAM: 4, ROTATE_CAM: 5, PREP_PAN_CAM: 6, PAN_CAM: 7, PREP_ZOOM_CAM: 8, ZOOM_CAM: 9, CAM_CONTROL: 10 };
     var state = STATES.NONE;
 
+    var objectType; // TODO: dirty code, fix
+
     // Used to keep track of cursor position when needed
     var storedScenePos = new THREE.Vector3(); 
     var storedScreenPos = new THREE.Vector3();
@@ -35,7 +37,7 @@ var MouseInterface = function(env) {
 	    state = STATES.NONE;
 	    break;
 	case STATES.PLACE_CONE: // Insert a cone
-	    selectedObject = insertObject(1, pos);
+	    selectedObject = insertObject(objectType, pos);
 	    state = STATES.NONE;
 	    break;
 	case STATES.PREP_ROTATE_OBJ: // Start rotating an object
@@ -72,7 +74,7 @@ var MouseInterface = function(env) {
 	case STATES.CAM_CONTROL:
 	    selectedObject = grabObject(pos);
 	    if (selectedObject) {
-		env.setMode(-1);
+		Env.setMode(-1);
 		state = STATES.NONE
 		initPos = pos.clone();
 	    }
@@ -182,8 +184,11 @@ var MouseInterface = function(env) {
 
 	Actions: [
 	    {label: "Add Cubes", onClick: function() { env.addCubes(); }},
-	    {label: "Add Plane", onClick: function() { state = STATES.PLACE_PLANE; }},
-	    {label: "Add Cone", onClick: function() { state = STATES.PLACE_CONE; }}
+	    {label: "Add Splitting Plane", onClick: function() { state = STATES.PLACE_PLANE; }},
+	    {label: "Add Cone", onClick: function() { objectType=1; state = STATES.PLACE_CONE; }},
+	    {label: "Add Cube", onClick: function() { objectType=2; state = STATES.PLACE_CONE; }},
+	    {label: "Add Sphere", onClick: function() { objectType=3; state = STATES.PLACE_CONE; }},
+	    {label: "Add Cylinder", onClick: function() { objectType=4; state = STATES.PLACE_CONE; }}	   
 	]
     };
 

@@ -347,7 +347,6 @@ var Env3D = function() {
 	    case 4: // cylinder
 	        obj.geometry = new THREE.CylinderGeometry(1/2, 1/2, 1, 50, 0);
 	        break;
-	    case
 	    default:
 	        return;
 	}
