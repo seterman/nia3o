@@ -93,16 +93,17 @@ var binContainer = $('<div class="bin-container">');
 // var addCubeBtn = $('<div class="bin">Cube Bin</div>');
 // binContainer.append(addCubeBtn);
 var coneBin = $('<div class="bin">Cone Bin</div>');
-var planeBin = $('<div class="bin">Plane Bin</div>');
+var planeBin = $('<div class="bin">Splitting Plane Bin</div>');
 var cubeBin = $('<div class="bin">Cube Bin</div>');
 var sphereBin = $('<div class="bin">Sphere Bin</div>');
 var cylBin = $('<div class="bin">Cylinder Bin</div>');
 var trash = $('<div class="trash">Trash</div>');
 binContainer.append(coneBin, cubeBin, sphereBin, cylBin, planeBin, trash);
 
-var cameraHandleRight = $('<div class="camera-handle camera-handle-right">');
-var cameraHandleLeft = $('<div class="camera-handle camera-handle-left">');
+var cameraHandleRight = $('<div class="camera-handle camera-handle-right">Camera Control</div>');
+var cameraHandleLeft = $('<div class="camera-handle camera-handle-left">Camera Control</div>');
 
+var hideCamCtls, showCamCtls;
 
 // indicate which (if any) of the controls are underneath the given
 // position. Return false if no element intersects POS, or the element
@@ -410,11 +411,11 @@ var LeapInterface = function(env) {
     $('body').prepend(binContainer);
     $('body').append(cameraHandleLeft, cameraHandleRight);
 
-    var hideCamCtls = function() {
+    hideCamCtls = function() {
         cameraHandleRight.hide();
         cameraHandleLeft.hide();
     };
-    var showCamCtls = function() {
+    showCamCtls = function() {
         cameraHandleRight.show();
         cameraHandleLeft.show();
     };
@@ -499,8 +500,8 @@ var LeapInterface = function(env) {
     // }, env.getRenderingComponents());
     // controller.use('boneHand', riggedHandOptions);
     var screenPositionOptions = {
-        verticalOffset: 400,
-        scale: 0.5
+        verticalOffset: 550,
+        scale: 0.6
     };
     controller.use('screenPosition', screenPositionOptions);
 };
