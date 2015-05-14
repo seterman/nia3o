@@ -33,7 +33,6 @@ var leapZToScale = function(leapZ) {
     return Math.max(result, 0.1);
 };
 
-var camCtls;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Grabbing and rotation helpers
