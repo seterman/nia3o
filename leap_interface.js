@@ -158,17 +158,7 @@ var LeapInterface = function(env) {
     // Helpers
     ///////////////////////////////////////////////////////////////////////////
 
-    // functions from callback_helpers.js, put in an object and sometimes
-    // renamed to help with consistency
-    var helpers = {
-        insertObject: insertObject,
-        selectObjectByPos: grabObject,
-        transformObject: transformObject,
-        deselectObject: dropObject,
-        highlightObjectByPos: highlightObject,
-        clearHighlight: unhighlightObject,
-    };
-
+    var helpers = CallbackHelpers();
     // env-dependent helpers
     var handPosToTransformPos = function(oldPos) {
         var newZ = leapZToSceneZ(oldPos.z);
@@ -399,23 +389,23 @@ var LeapInterface = function(env) {
     ///////////////////////////////////////////////////////////////////////////
     coneBin.click(function(evt, handType, handPos) {
         var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
-        handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.CONE, pos);
+        handState[handType].currentSelection = helpers.insertObject(helpers.OBJECT_TYPES.CONE, pos);
     });
     planeBin.click(function(evt, handType, handPos) {
         var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
-        handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.PLANE, pos);
+        handState[handType].currentSelection = helpers.insertObject(helpers.OBJECT_TYPES.PLANE, pos);
     });
     cubeBin.click(function(evt, handType, handPos) {
         var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
-        handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.CUBE, pos);
+        handState[handType].currentSelection = helpers.insertObject(helpers.OBJECT_TYPES.CUBE, pos);
     });
     cylBin.click(function(evt, handType, handPos) {
         var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
-        handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.CYLINDER, pos);
+        handState[handType].currentSelection = helpers.insertObject(helpers.OBJECT_TYPES.CYLINDER, pos);
     });
     sphereBin.click(function(evt, handType, handPos) {
         var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
-        handState[handType].currentSelection = helpers.insertObject(OBJECT_TYPES.SPHERE, pos);
+        handState[handType].currentSelection = helpers.insertObject(helpers.OBJECT_TYPES.SPHERE, pos);
     });
     $('body').prepend(binContainer);
     $('body').append(cameraHandleLeft, cameraHandleRight);

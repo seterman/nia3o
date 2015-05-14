@@ -1,5 +1,8 @@
 // Adds functionality for the mouse
+//TODO: use callbacks.OBJECT_TYPES, make objects highlight on hover
 var MouseInterface = function(env) {
+    var callbacks = CallbackHelpers();
+
     var STATES = { NONE: -1, PLACE_PLANE: 0, PLACE_CONE: 1, PREP_ROTATE_OBJ: 2, ROTATE_OBJ: 3, PREP_ROTATE_CAM: 4, ROTATE_CAM: 5, PREP_PAN_CAM: 6, PAN_CAM: 7, PREP_ZOOM_CAM: 8, ZOOM_CAM: 9, CAM_CONTROL: 10 };
     var state = STATES.NONE;
 
@@ -28,20 +31,20 @@ var MouseInterface = function(env) {
 	}
 	switch (state) {
 	case STATES.NONE: // Select the object
-	    selectedObject = grabObject(pos);
+	    selectedObject = callbacks.selectObjectByPos(pos);
 	    initPos = pos.clone();
 	    break;
 
 	case STATES.PLACE_PLANE: // Insert a plane
-	    selectedObject = insertObject(0, pos);
+	    selectedObject = callbacks.insertObject(0, pos);
 	    state = STATES.NONE;
 	    break;
 	case STATES.PLACE_CONE: // Insert a cone
-	    selectedObject = insertObject(objectType, pos);
+	    selectedObject = callbacks.insertObject(objectType, pos);
 	    state = STATES.NONE;
 	    break;
 	case STATES.PREP_ROTATE_OBJ: // Start rotating an object
-	    selectedObject = grabObject(pos);
+	    selectedObject = callbacks.selectObjectByPos(pos);
 	    if (selectedObject) {
 		initPos = pos.clone();
 		storedScenePos.x = env.convertToSceneUnits(0, window.innerWidth, e.clientX, "x");
@@ -72,7 +75,7 @@ var MouseInterface = function(env) {
 	    state = STATES.ZOOM_CAM;
 	    break;
 	case STATES.CAM_CONTROL:
-	    selectedObject = grabObject(pos);
+	    selectedObject = callbacks.selectObjectByPos(pos);
 	    if (selectedObject) {
 		Env.setMode(-1);
 		state = STATES.NONE
@@ -98,7 +101,7 @@ var MouseInterface = function(env) {
 		var dO = new THREE.Vector3(0, 0, 0);
 		var dP = new THREE.Vector3(x, y, 0).sub(storedScenePos);
 		storedScenePos = new THREE.Vector3(x, y, 0);
-		transformObject(selectedObject, dO, dP, initPos);
+		callbacks.transformObject(selectedObject, dO, dP, initPos);
 	    }
 	    break;
 	case STATES.ROTATE_OBJ: // Rotate an object
@@ -108,7 +111,7 @@ var MouseInterface = function(env) {
 	    var radsPerPx = 0.01;
 	    dO.x = (e.clientY-storedScreenPos.y)*radsPerPx;
 	    dO.y = (e.clientX-storedScreenPos.x)*radsPerPx;
-	    transformObject(selectedObject, dO, dP, initPos);
+	    callbacks.transformObject(selectedObject, dO, dP, initPos);
 	    storedScreenPos = currPos.clone();
 	    break;
 	case STATES.ROTATE_CAM: // Rotate camera //TODO: less copy paste?
@@ -150,11 +153,11 @@ var MouseInterface = function(env) {
 	switch (state) {
 	case STATES.NONE:
 	    if (selectedObject) {
-		selectedObject = dropObject(selectedObject); //TODO: again, OBJECT_SELECTED state
+		selectedObject = callbacks.deselectObject(selectedObject); //TODO: again, OBJECT_SELECTED state
 	    }
 	    break;
 	case STATES.ROTATE_OBJ: 
-	    selectedObject = dropObject(selectedObject);
+	    selectedObject = callbacks.deselectObject(selectedObject);
 	    // Stop the current rotation and prep for another rotation
 	    state = STATES.PREP_ROTATE_OBJ;
 	    break;

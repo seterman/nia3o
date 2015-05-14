@@ -1,14 +1,7 @@
-/* 
-This file contains some theoretical code that would help facilitate the operations in our case 
-scenario. It would be useful to actually implement the functions that are called from this file,
-but they're not yet.
-*/
+var CallbackHelpers = function() {
 
-var insertObject, grabObject, transformObject, dropObject, highlightObject, unhighlightObject;
-var OBJECT_TYPES;
-
-$(document).ready(function() {
-
+    var helpers = {};
+    
     // Color constants
     var SELECTED_COLOR = 0xff0000;
     var HIGHLIGHT_COLOR = 0x0000ff;
@@ -16,12 +9,12 @@ $(document).ready(function() {
     var PLANE_COLOR = 0xffffff;
 
     // Object type enumerables
-    OBJECT_TYPES = {
+    helpers.OBJECT_TYPES = {
 	PLANE: 0,
 	CONE: 1,
-    CUBE: 2,
-    SPHERE: 3,
-    CYLINDER: 4
+	CUBE: 2,
+	SPHERE: 3,
+	CYLINDER: 4
     };
 
     // Keeps track of splits so that they can be remerged if the plane moves.
@@ -67,7 +60,7 @@ $(document).ready(function() {
 
     // Inserts an object and makes it appear selected.
     // Returns the object.
-    insertObject = function(type, pos) {
+    helpers.insertObject = function(type, pos) {
 	var selectedObj = env.insertObject(type, pos);
 	env.setObjectColor(selectedObj, SELECTED_COLOR);
 	return selectedObj;
@@ -75,7 +68,7 @@ $(document).ready(function() {
 
     // Figures out what object is being grabbed and makes it appear selected.
     // Returns the object.
-    grabObject = function(pos) {
+    helpers.selectObjectByPos = function(pos) {
 	var selectedObj = env.getObjectByIntersection(pos);
 	if (selectedObj) {
 	    env.setObjectColor(selectedObj, SELECTED_COLOR);
@@ -96,7 +89,7 @@ $(document).ready(function() {
     //
     // To only translate or only rotate an object, simply set the 
     // undesired delta parameter to be all zeros. 
-    transformObject = function(obj, deltaOri, deltaPos, initPos) {
+    helpers.transformObject = function(obj, deltaOri, deltaPos, initPos) {
 	var selectedObj = obj;
 	// If the object is a plane, remerge its split pieces.
 	if (selectedObj.userData.isPlane) {
@@ -125,7 +118,7 @@ $(document).ready(function() {
 
     // Make the object appear not selected.
     // Returns null for ease of assigning selected objects.
-    dropObject = function(obj) {
+    helpers.deselectObject = function(obj) {
 	// If the object is a plane, preliminarily split the 
 	// objects it intersects
 	if (obj.userData.isPlane) {
@@ -152,19 +145,21 @@ $(document).ready(function() {
 	return null; // Expliciyly return null, just in case.
     };
 
-    highlightObject = function(pos) {
-    var selectedObj = env.getObjectByIntersection(pos);
-    if (selectedObj) {
-        env.setObjectColor(selectedObj, HIGHLIGHT_COLOR);
-    }
-    return selectedObj;
+    helpers.highlightObjectByPos = function(pos) {
+	var selectedObj = env.getObjectByIntersection(pos);
+	if (selectedObj) {
+            env.setObjectColor(selectedObj, HIGHLIGHT_COLOR);
+	}
+	return selectedObj;
     };
 
-    unhighlightObject = function(obj) {
-    if (obj) {
-        env.setObjectColor(obj, obj.userData.isPlane ? PLANE_COLOR : DEFAULT_COLOR);
-    }
-    return null;
+    helpers.clearHighlight = function(obj) {
+	if (obj) {
+            env.setObjectColor(obj, obj.userData.isPlane ? PLANE_COLOR : DEFAULT_COLOR);
+	}
+	return null;
     };
 
-});
+    return helpers;
+
+};
