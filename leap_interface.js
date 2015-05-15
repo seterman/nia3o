@@ -33,7 +33,6 @@ var leapZToScale = function(leapZ) {
     return Math.max(result, 0.1);
 };
 
-var camCtls;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Grabbing and rotation helpers
@@ -76,14 +75,6 @@ var deltaPos = function(p1, p2) {
     };
 };
 
-var smallestAxis = function(v) {
-    var x = Math.abs(v.x);
-    var y = Math.abs(v.y);
-    var z = Math.abs(v.z);
-    if (x < y && x < z) return 'x';
-    if (y < x && y < z) return 'y';
-    return 'z';
-};
 
 ///////////////////////////////////////////////////////////////////////////////
 // GUI
@@ -93,21 +84,19 @@ var binContainer = $('<div class="bin-container">');
 // var addCubeBtn = $('<div class="bin">Cube Bin</div>');
 // binContainer.append(addCubeBtn);
 var coneBin = $('<div class="bin">Cone Bin</div>');
-var planeBin = $('<div class="bin">Plane Bin</div>');
+var planeBin = $('<div class="bin">Splitting Plane Bin</div>');
 var cubeBin = $('<div class="bin">Cube Bin</div>');
 var sphereBin = $('<div class="bin">Sphere Bin</div>');
 var cylBin = $('<div class="bin">Cylinder Bin</div>');
 var trash = $('<div class="trash">Trash</div>');
 binContainer.append(coneBin, cubeBin, sphereBin, cylBin, planeBin, trash);
 
-var cameraHandleRight = $('<div class="camera-handle camera-handle-right">');
-var cameraHandleLeft = $('<div class="camera-handle camera-handle-left">');
-
+var cameraHandleRight = $('<div class="camera-handle camera-handle-right">Camera Control</div>');
+var cameraHandleLeft = $('<div class="camera-handle camera-handle-left">Camera Control</div>');
 
 // indicate which (if any) of the controls are underneath the given
 // position. Return false if no element intersects POS, or the element
 // if one does intersect
-// TODO: does the handEntry plugin do this automatically?
 var findIntersecting = function(pos, elements) {
     for (var i = 0; i < elements.length; i++) {
         var element = elements.eq(i);
@@ -150,10 +139,6 @@ var updateIntersectionHighlights = function(intersecting, type) {
 ///////////////////////////////////////////////////////////////////////////////
 
 var LeapInterface = function(env) {
-    // camCtls = LeapCameraControls(env);
-
-    // env.addCubes();
-
     ///////////////////////////////////////////////////////////////////////////
     // Helpers
     ///////////////////////////////////////////////////////////////////////////
@@ -233,22 +218,15 @@ var LeapInterface = function(env) {
         if (s.intersectingBin) {
             s.intersectingBin.trigger('click', [s.handType, s.handPos]);
         } else if (s.intersectingCam) {
+            // grabbing camera controls
             s.intersectingCam.addClass("held-by-"+s.handType);
 
             s.handState.grabbingCam = true;
-            // console.log('grabbing cam with', s.handType,'hand');
             if (s.handState.otherHand.grabbingCam) {
-                // console.log('enabling rotation');
-                // camCtls.disable();
-
                 var difference = deltaPos(s.handPos, s.handState.otherHand.lastPos);
-                // camCtls.enableRotate(difference.x, difference.y);
                 // Only the right hand tracks the difference in position between
                 // hands
                 handState.right.lastDifference = difference;
-            } else {
-                // console.log('enabling zoom/pan');
-                // camCtls.enablePan(s.handPos.x, s.handPos.y);
             }
         } else {
             var selection = helpers.selectObjectByPos(s.handPos);
@@ -258,39 +236,34 @@ var LeapInterface = function(env) {
         }
     };
 
-    // TODO!!!!!! figure out why moving lags weirdly after an object is placed
+    // TODO: figure out why moving lags weirdly after an object is placed
     var handleGrabActive = function(s) {
         if (s.handState.grabbingCam) {
-            // console.log('cam moving');
-            // if (s.handType == 'right' && s.handState.otherHand.grabbingCam) {
-            //     console.log('both hands grabbing cam');
-            // }
-
             var d, delta;
             if (s.handState.otherHand.grabbingCam) {
                 // Make sure we don't double count rotation
                 if (s.handType == 'right') {
                     // Rotate
-                    // console.log('current hand pos:', s.handPos);
-                    // console.log('other hand pos:', s.handState.otherHand.lastPos);
                     var thisPos = s.handPos;
                     var otherPos = s.handState.otherHand.lastPos;
                     var currentDiff = deltaPos(thisPos, otherPos);
-                    // console.log('current delta:', currentDiff);
                     var lastDiff = s.handState.lastDifference;
 
                     var movement = deltaPos(currentDiff, lastDiff);
                     var mag = new THREE.Vector3(movement.x, movement.y, movement.z).length();
                     if (mag > 2) {
-
-                        // x and y changing more than z -> rotate around z axis
-                        // x and z changing more than y -> rotate around y axis
-                        // y and z changing more than x -> rotate around x axis
+                        // return the number with the greatest magnitude
                         var f = function(a, b) {
                             if (Math.abs(a) > Math.abs(b)) return a;
                             return b;
                         };
 
+                        // Empirically determined formulas for rotating the camera about
+                        // each axis. It works all together, but is easier to see
+                        // if two axes are hardcoded to 0 (so the camera can only move
+                        // around one axis at a time)
+                        // I probably could have figured these out non-experimentally,
+                        // but math is hard
                         var dx, dy, dz;
                         var z = thisPos.y < otherPos.y ? movement.z : -movement.z;
                         dx = f(z, -movement.y);
@@ -308,9 +281,6 @@ var LeapInterface = function(env) {
                     }
                 }
             } else {
-                // console.log('pan/zooming');
-                // camCtls.pan(s.handPos.x, s.handPos.y);
-                // camCtls.zoom(s.handPos.z - s.handState.lastPos.z);
                 d = deltaPos(s.handPos, s.handState.lastPos);
                 // vertical axis must be inverted
                 delta = new THREE.Vector3(d.x, -d.y, d.z);
@@ -322,8 +292,8 @@ var LeapInterface = function(env) {
             // transform the selected object
 
             // rotation since one frame ago
-            // takes an exponentially weighted moving average
-            // this needs tweaking, probably
+            // takes an exponentially weighted moving average to smooth
+            // I'm not sure if this actually helps
             var currentAngle = getAngle(s.leapHand);
             var rotation = currentAngle.sub(s.handState.lastAngle);
             s.handState.lastAngle = currentAngle;
@@ -340,7 +310,6 @@ var LeapInterface = function(env) {
             var lastXformPos = handPosToTransformPos(s.handState.lastPos);
             var currentXformPos = handPosToTransformPos(s.handPos);
             var translation = currentXformPos.sub(lastXformPos);
-            // s.handState.lastPos = s.handPos;
 
             // do the transform
             helpers.transformObject(
@@ -355,18 +324,8 @@ var LeapInterface = function(env) {
 
     var handleNoGrab = function(s) {
         s.handState.grabStartFrame = null;
-        $('.held-by-'+s.handType).removeClass('held-by-'+s.handType);
-
-        // if we are letting go of the camera, reset camera controls
-        // depending on what the other hand is doing
-        // if (s.handState.grabbingCam) {
-        //     camCtls.disable();
-        //     if (s.handState.otherHand.grabbingCam) {
-        //         var p = s.handState.otherHand.lastPos;
-        //         camCtls.enablePan(p.x, p.y);
-        //     }
-        // }
         s.handState.grabbingCam = false;
+        $('.held-by-'+s.handType).removeClass('held-by-'+s.handType);
 
         if (s.handState.currentSelection) {
             helpers.deselectObject(s.handState.currentSelection);
@@ -376,7 +335,6 @@ var LeapInterface = function(env) {
             s.handState.currentSelection = null;
         }
 
-        // TODO: don't highlight an object being held by the other hand
         var newHighlight = helpers.highlightObjectByPos(s.handPos);
         if (newHighlight != s.handState.currentHighlight) {
             helpers.clearHighlight(s.handState.currentHighlight);
@@ -387,6 +345,8 @@ var LeapInterface = function(env) {
     ///////////////////////////////////////////////////////////////////////////
     // Setup GUI elements
     ///////////////////////////////////////////////////////////////////////////
+
+    // This could be factored out nicely, but not worth the effort at the moment
     coneBin.click(function(evt, handType, handPos) {
         var pos = { x: handPos.x, y: handPos.y, z: leapZToSceneZ(handPos.z) };
         handState[handType].currentSelection = helpers.insertObject(helpers.OBJECT_TYPES.CONE, pos);
@@ -410,21 +370,12 @@ var LeapInterface = function(env) {
     $('body').prepend(binContainer);
     $('body').append(cameraHandleLeft, cameraHandleRight);
 
-    var hideCamCtls = function() {
-        cameraHandleRight.hide();
-        cameraHandleLeft.hide();
-    };
-    var showCamCtls = function() {
-        cameraHandleRight.show();
-        cameraHandleLeft.show();
-    };
 
     ///////////////////////////////////////////////////////////////////////////
     // Leap controller
     ///////////////////////////////////////////////////////////////////////////
     var controllerOptions = {};
     var controller = Leap.loop(controllerOptions, function(frame) {
-        // var rhScope = this.plugins.riggedHand;
         handState.left.cursor.hide();
         handState.right.cursor.hide();
 
@@ -494,13 +445,9 @@ var LeapInterface = function(env) {
         }
     });
 
-    // var riggedHandOptions = $.extend({
-    //     // targetEl: document.body
-    // }, env.getRenderingComponents());
-    // controller.use('boneHand', riggedHandOptions);
     var screenPositionOptions = {
         verticalOffset: 400,
-        scale: 0.5
+        scale: 0.6
     };
     controller.use('screenPosition', screenPositionOptions);
 };
